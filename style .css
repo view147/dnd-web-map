@@ -31,3 +31,15 @@ body {
   transform-origin: 0 0;
   user-select: none;
 }
+#dm-lock {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  z-index: 9999;
+}
+
