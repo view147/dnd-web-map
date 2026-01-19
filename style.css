@@ -1,0 +1,27 @@
+/* การตั้งค่าหน้าจอพื้นฐาน */
+body, html {
+    margin: 0; padding: 0; 
+    width: 100%; height: 100%;
+    overflow: hidden; 
+    background-color: #1a1a1a;
+}
+
+#game-viewport {
+    width: 100vw; height: 100vh;
+    cursor: grab;
+    display: flex; align-items: center; justify-content: center;
+    touch-action: none; /* ป้องกัน browser สับสนเวลาลากบนมือถือ */
+}
+
+#map-container {
+    transform-origin: center;
+    will-change: transform;
+}
+
+#main-map {
+    display: block;
+    width: 5000px; /* ปรับขนาดเริ่มต้นของ SVG ตามต้องการ */
+    height: auto;
+    user-select: none;
+    -webkit-user-drag: none;
+}
