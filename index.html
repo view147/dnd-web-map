@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>D&D Tabletop Web</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="dm-lock.css">
+</head>
+<body>
+
+    <div id="game-viewport">
+        <div id="map-container">
+            <img src="map.svg" id="main-map" alt="World Map">
+        </div>
+    </div>
+
+    <div id="dm-overlay" class="active">
+        <div class="lock-content">
+            <h1>สถานะ: DM ยังไม่มา</h1>
+            <p>กรุณารอการปลดล็อกเซสชันเพื่อเริ่มการผจญภัย</p>
+            <button id="unlock-btn">Unlock Session (DM Only)</button>
+        </div>
+    </div>
+
+    <script src="map-engine.js"></script>
+    <script src="dm-control.js"></script>
+</body>
+</html>
