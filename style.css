@@ -14,8 +14,10 @@ body, html {
 }
 
 #map-container {
-    position: relative; /* เพื่อให้ลูกๆ ที่เป็น absolute อ้างอิงพิกัดจากตัวมัน */
-    transform-origin: 0 0; /* เปลี่ยนจุดหมุนไปที่มุมซ้ายบนเพื่อให้คำนวณตำแหน่งง่ายขึ้น */
+    position: relative;
+    /* เปลี่ยนจุดอ้างอิงเป็น 0 0 (บนซ้าย) เพื่อให้การลากพิกัดแม่นยำ */
+    transform-origin: 0 0; 
+    display: block;
     will-change: transform;
 }
 
