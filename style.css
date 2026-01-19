@@ -25,3 +25,8 @@ body, html {
     user-select: none;
     -webkit-user-drag: none;
 }
+.map-part {
+    position: absolute; /* เพื่อให้สามารถวางต่อกันได้ตามพิกัด */
+    width: 5000px; /* หรือตามขนาดจริงของแต่ละภาค */
+    height: auto;
+}
