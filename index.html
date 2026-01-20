@@ -4,21 +4,32 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>D&D Tabletop Web</title>
+
+    <!-- CSS -->
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="dm-lock.css">
 </head>
 <body>
 
-    <div id="game-viewport">
-        <div id="map-container">
-    <img src="maps/เหนือ.svg" class="map-part" style="top: 0; left: 0;">
-    <img src="maps/เหนือ(เส้นทาง).svg" class="map-part" style="top: 0; left: 0;">
+    <!-- VIEWPORT (พื้นที่มอง) -->
+    <div id="viewport">
+        <!-- MAP CONTAINER (ทุกแผนที่ต้องอยู่ข้างในนี้) -->
+        <div id="map">
 
-    <img src="maps/กลาง.svg" class="map-part" style="top: 2000px; left: 0;">
-    
-    <img src="maps/ใต้.svg" class="map-part" style="top: 4000px; left: 0;">
-</div>
+            <!-- ภาคเหนือ -->
+            <img src="maps/เหนือ.svg" class="map-part" style="top: 0; left: 0;">
+            <img src="maps/เหนือ(เส้นทาง).svg" class="map-part" style="top: 0; left: 0;">
 
+            <!-- ภาคกลาง -->
+            <img src="maps/กลาง.svg" class="map-part" style="top: 2000px; left: 0;">
+
+            <!-- ภาคใต้ -->
+            <img src="maps/ใต้.svg" class="map-part" style="top: 4000px; left: 0;">
+
+        </div>
+    </div>
+
+    <!-- DM LOCK OVERLAY -->
     <div id="dm-overlay" class="active">
         <div class="lock-content">
             <h1>สถานะ: DM ยังไม่มา</h1>
@@ -27,7 +38,9 @@
         </div>
     </div>
 
+    <!-- JS -->
     <script src="map-engine.js"></script>
     <script src="dm-control.js"></script>
+
 </body>
 </html>
