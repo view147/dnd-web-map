@@ -5,60 +5,44 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>D&D Tabletop Web</title>
 
-    <!-- CSS -->
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="dm-lock.css">
 </head>
 <body>
 
-   <div id="game-viewport">
-       
-  <div id="map-container">
+<div id="game-viewport">
+    <div id="map-container">
 
-    <!-- เหนือ -->
-    <img src="pale_south.svg/เหนือ.svg"
-         class="map-part"
-         style="left:4000px; top:0px;">
+        <!-- เหนือ -->
+        <img src="pale_south.svg/เหนือ.svg" class="map-part" style="top:0; left:1500px;">
 
-    <!-- ตะวันตก -->
-    <img src="pale_south.svg/ตก.svg"
-         class="map-part"
-         style="left:0px; top:3000px;">
+        <!-- ตะวันออก -->
+        <img src="pale_south.svg/ตะวันออก.svg" class="map-part" style="top:1000px; left:3000px;">
 
-    <!-- กลาง -->
-    <img src="pale_south.svg/กลาง.svg"
-         class="map-part"
-         style="left:4000px; top:3000px;">
+        <!-- ใต้ -->
+        <img src="pale_south.svg/ใต้.svg" class="map-part" style="top:3000px; left:1500px;">
 
-    <!-- ตะวันออก -->
-    <img src="pale_south.svg/ออก.svg"
-         class="map-part"
-         style="left:8000px; top:3000px;">
+        <!-- ตะวันตก -->
+        <img src="pale_south.svg/ตก.svg" class="map-part" style="top:1000px; left:0;">
 
-    <!-- ใต้ -->
-    <img src="pale_south.svg/ใต้.svg"
-         class="map-part"
-         style="left:4000px; top:6000px;">
+        <!-- กลาง -->
+        <img src="pale_south.svg/กลาง.svg" class="map-part" style="top:1500px; left:1500px;">
 
-    <!-- ลอยฟ้า -->
-    <img src="pale_south.svg/ลอยฟ้า.svg"
-         class="map-part"
-         style="left:0px; top:6500px;">
+        <!-- ลอยฟ้า -->
+        <img src="pale_south.svg/ลอยฟ้า.svg" class="map-part" style="top:-1500px; left:1500px;">
 
-  </div>
-</div>
-    <!-- DM LOCK OVERLAY (อยู่นอก viewport) -->
-    <div id="dm-overlay" class="active">
-        <div class="lock-content">
-            <h1>สถานะ: DM ยังไม่มา</h1>
-            <p>กรุณารอการปลดล็อกเซสชันเพื่อเริ่มการผจญภัย</p>
-            <button id="unlock-btn">Unlock Session (DM Only)</button>
-        </div>
     </div>
+</div>
 
-    <!-- JS -->
-    <script src="map-engine.js"></script>
-    <script src="dm-control.js"></script>
+<div id="dm-overlay" class="active">
+    <div class="lock-content">
+        <h1>สถานะ: DM ยังไม่มา</h1>
+        <p>กรุณารอการปลดล็อกเซสชันเพื่อเริ่มการผจญภัย</p>
+        <button id="unlock-btn">Unlock Session (DM Only)</button>
+    </div>
+</div>
 
+<script src="map-engine.js"></script>
+<script src="dm-control.js"></script>
 </body>
 </html>
