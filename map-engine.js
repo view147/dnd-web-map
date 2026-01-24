@@ -38,3 +38,8 @@ window.addEventListener("mousemove", (e) => {
     pointY = e.clientY - start.y;
     updateTransform();
 });
+// ตั้งตำแหน่งเริ่มต้นให้อยู่กลางโลก
+pointX = -1500;
+pointY = -1500;
+scale = 0.6;
+updateTransform();
