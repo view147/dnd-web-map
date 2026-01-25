@@ -1,7 +1,4 @@
-/* ------------------------------
-   พื้นฐานหน้าจอ
------------------------------- */
-html, body {
+/html, body {
     margin: 0;
     padding: 0;
     width: 100%;
@@ -10,43 +7,34 @@ html, body {
     background-color: #1a1a1a;
 }
 
-/* ------------------------------
-   VIEWPORT (พื้นที่มอง)
------------------------------- */
-#viewport {
+/* VIEWPORT */
+#game-viewport {
     width: 100vw;
     height: 100vh;
     cursor: grab;
     overflow: hidden;
     position: relative;
-    touch-action: none; /* กัน browser แย่ง gesture */
+    touch-action: none;
 }
 
-/* ------------------------------
-   MAP CONTAINER (โดนลาก/ซูม)
------------------------------- */
-#map {
+/* MAP CONTAINER */
+#map-container {
     position: absolute;
     top: 0;
     left: 0;
-
-    width: 8000px;      /* ⭐ เพิ่ม */
-    height: 8000px;     /* ⭐ เพิ่ม */
-
+    width: 8000px;
+    height: 8000px;
     transform-origin: 0 0;
     will-change: transform;
 }
 
-/* ------------------------------
-   MAP PART (SVG แต่ละภาค)
------------------------------- */
+/* MAP PART */
 .map-part {
     position: absolute;
-    width: 5000px;      /* ปรับตามขนาด SVG จริง */
+    width: 5000px;
     height: auto;
-
     user-select: none;
     -webkit-user-drag: none;
-    pointer-events: none; /* กัน SVG แย่งเมาส์ */
+    pointer-events: none;
     display: block;
 }
