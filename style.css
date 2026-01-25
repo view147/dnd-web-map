@@ -29,6 +29,10 @@ html, body {
     position: absolute;
     top: 0;
     left: 0;
+
+    width: 8000px;      /* ⭐ เพิ่ม */
+    height: 8000px;     /* ⭐ เพิ่ม */
+
     transform-origin: 0 0;
     will-change: transform;
 }
