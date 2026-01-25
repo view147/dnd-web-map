@@ -43,3 +43,14 @@ window.addEventListener("mousemove", (e) => {
 
 // initial
 updateTransform();
+window.addEventListener("keydown", (e) => {
+    if (e.key === "s") {
+        console.log("WORLD POSITION");
+        console.log({
+            x: pointX,
+            y: pointY,
+            scale: scale
+        });
+        alert("บันทึกตำแหน่งแล้ว ดูค่าใน Console");
+    }
+});
