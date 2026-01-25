@@ -46,3 +46,10 @@
     font-weight: bold;
     margin-top: 15px;
 }
+#dm-overlay {
+    pointer-events: none;
+}
+
+#dm-overlay.active {
+    pointer-events: all;
+}
