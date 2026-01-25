@@ -1,7 +1,7 @@
-let scale = 1;
+let scale = 0.6;
 let panning = false;
-let pointX = 0;
-let pointY = 0;
+let pointX = -1500;
+let pointY = -1500;
 let start = { x: 0, y: 0 };
 
 const container = document.getElementById("map-container");
@@ -12,6 +12,7 @@ function updateTransform() {
         `translate(${pointX}px, ${pointY}px) scale(${scale})`;
 }
 
+// Zoom
 viewport.addEventListener("wheel", (e) => {
     e.preventDefault();
     const zoom = 0.1;
@@ -20,6 +21,7 @@ viewport.addEventListener("wheel", (e) => {
     updateTransform();
 }, { passive: false });
 
+// Pan
 viewport.addEventListener("mousedown", (e) => {
     if (document.getElementById("dm-overlay").classList.contains("active")) return;
     panning = true;
@@ -38,8 +40,6 @@ window.addEventListener("mousemove", (e) => {
     pointY = e.clientY - start.y;
     updateTransform();
 });
-// ตั้งตำแหน่งเริ่มต้นให้อยู่กลางโลก
-pointX = -1500;
-pointY = -1500;
-scale = 0.6;
+
+// initial
 updateTransform();
