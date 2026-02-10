@@ -2,10 +2,18 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Test Page</title>
+  <title>Login</title>
 </head>
 <body>
-  <h1>เว็บขึ้นแล้ว</h1>
-  <p>GitHub Pages ใช้งานได้</p>
+  <h2>เข้าสู่ระบบ</h2>
+
+  <input id="username" placeholder="ชื่อผู้ใช้"><br><br>
+  <input id="password" type="password" placeholder="รหัสผ่าน"><br><br>
+
+  <button onclick="login()">เข้าสู่ระบบ</button>
+
+  <p id="result"></p>
+
+  <script src="login.js"></script>
 </body>
 </html>
