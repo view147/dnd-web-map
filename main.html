@@ -1,23 +1,24 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
 <head>
   <meta charset="UTF-8">
   <title>Main Page</title>
+
+  <script>
+    // กันเข้าโดยไม่ล็อกอิน (ทำตั้งแต่ก่อนโหลดหน้า)
+    if (localStorage.getItem("loggedIn") !== "true") {
+      window.location.href = "login.html";
+    }
+  </script>
 </head>
 <body>
 
   <h1>หน้าเว็บหลัก</h1>
   <p>ยินดีต้อนรับ</p>
 
-  <button onclick="logout()">Logout</button>
+  <button type="button" onclick="logout()">Logout</button>
 
   <script src="auth.js"></script>
-  <script>
-    // กันคนเข้าโดยไม่ล็อกอิน
-    if (localStorage.getItem("loggedIn") !== "true") {
-      window.location.href = "login.html";
-    }
-  </script>
 
 </body>
 </html>
