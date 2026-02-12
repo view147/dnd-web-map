@@ -1,60 +1,42 @@
 const express = require("express");
 const fs = require("fs");
+const cors = require("cors");
 
 const app = express();
 app.use(express.json());
+app.use(cors());
 
-// โหลดข้อมูล
-let data = JSON.parse(fs.readFileSync("data.json"));
-
-// สร้างตัวละคร
-app.post("/character", (req, res) => {
-  const character = {
-    id: Date.now(),
-    name: req.body.name,
-    hp: 100
-  };
-  data.characters.push(character);
-  save();
-  res.json(character);
-});
-
-// ดูตัวละครทั้งหมด
-app.get("/character", (req, res) => {
-  res.json(data.characters);
-});
-
-// ทอยลูกเต๋า
-app.post("/dice", (req, res) => {
-  const sides = req.body.sides || 20;
-  const roll = Math.floor(Math.random() * sides) + 1;
-  res.json({ roll });
-});
-
-function save() {
-  fs.writeFileSync("data.json", JSON.stringify(data, null, 2));
-}
-
-app.listen(3000, () => {
-  console.log("Server running on port 3000");
-});
-const express = require("express");
-const fs = require("fs");
-const app = express();
-
-app.use(express.json());
-
+const DATA_FILE = "data.json";
 const USERS_FILE = "users.json";
 
-// โหลดผู้ใช้
+/* ======================
+   LOAD / SAVE
+====================== */
+function loadData() {
+  if (!fs.existsSync(DATA_FILE)) {
+    fs.writeFileSync(DATA_FILE, JSON.stringify({ characters: [] }, null, 2));
+  }
+  return JSON.parse(fs.readFileSync(DATA_FILE));
+}
+
 function loadUsers() {
   if (!fs.existsSync(USERS_FILE)) {
-    fs.writeFileSync(USERS_FILE, JSON.stringify([]));
+    fs.writeFileSync(USERS_FILE, JSON.stringify([], null, 2));
   }
   return JSON.parse(fs.readFileSync(USERS_FILE));
 }
 
-// สมัครสมาชิก
+function saveData(data) {
+  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+}
+
+function saveUsers(users) {
+  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+}
+
+/* ======================
+   AUTH
+====================== */
 app.post("/register", (req, res) => {
   const { username, passwordHash } = req.body;
   const users = loadUsers();
@@ -64,12 +46,11 @@ app.post("/register", (req, res) => {
   }
 
   users.push({ username, passwordHash });
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+  saveUsers(users);
 
   res.json({ success: true });
 });
 
-// ล็อกอิน
 app.post("/login", (req, res) => {
   const { username, passwordHash } = req.body;
   const users = loadUsers();
@@ -85,6 +66,41 @@ app.post("/login", (req, res) => {
   res.json({ success: true });
 });
 
+/* ======================
+   CHARACTER
+====================== */
+app.post("/character", (req, res) => {
+  const data = loadData();
+
+  const character = {
+    id: Date.now(),
+    name: req.body.name || "Unnamed",
+    hp: 100
+  };
+
+  data.characters.push(character);
+  saveData(data);
+
+  res.json(character);
+});
+
+app.get("/character", (req, res) => {
+  const data = loadData();
+  res.json(data.characters);
+});
+
+/* ======================
+   DICE
+====================== */
+app.post("/dice", (req, res) => {
+  const sides = req.body.sides || 20;
+  const roll = Math.floor(Math.random() * sides) + 1;
+  res.json({ roll });
+});
+
+/* ======================
+   START SERVER
+====================== */
 app.listen(3000, () => {
   console.log("Backend running on port 3000");
 });
