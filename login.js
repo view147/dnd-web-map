@@ -1,32 +1,22 @@
-async function hashPassword(pass) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(pass);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
-}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Login</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
 
-async function login() {
-  const user = document.getElementById("username").value;
-  const pass = document.getElementById("password").value;
+  <h2>Sign In</h2>
 
-  const hash = await hashPassword(pass);
+  <input id="username" placeholder="Username">
+  <input id="password" type="password" placeholder="Password">
 
-  const res = await fetch("http://localhost:3000/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      username: user,
-      passwordHash: hash
-    })
-  });
+  <br><br>
 
-  const data = await res.json();
+  <button onclick="login()">Sign In</button>
+  <button onclick="goRegister()">Register</button>
 
-  if (data.success) {
-    // ล็อกอินผ่าน → เข้าเว็บหลัก
-    window.location.href = "main.html";
-  } else {
-    alert("ชื่อหรือรหัสผิด");
-  }
-}
+  <script src="auth.js"></script>
+</body>
+</html>
