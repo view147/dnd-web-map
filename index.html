@@ -1,19 +1,31 @@
 <!DOCTYPE html>
-<html>
+<html lang="th">
 <head>
   <meta charset="UTF-8">
-  <title>Login</title>
+  <title>Main</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h2>เข้าสู่ระบบ</h2>
 
-  <input id="username" placeholder="ชื่อผู้ใช้"><br><br>
-  <input id="password" type="password" placeholder="รหัสผ่าน"><br><br>
+  <!-- แถบด้านบน -->
+  <header class="top-bar">
+    <div class="logo">YOUR GAME</div>
 
-  <button onclick="login()">เข้าสู่ระบบ</button>
+    <nav class="menu">
+      <span>Library</span>
+      <span>Tools</span>
+      <span>Rules</span>
+    </nav>
 
-  <p id="result"></p>
+    <div class="user">
+      <button class="login">Sign In</button>
+    </div>
+  </header>
 
-  <script src="login.js"></script>
+  <!-- ภาพหลัก -->
+  <section class="hero">
+    <img src="town.jpg" alt="map">
+  </section>
+
 </body>
 </html>
