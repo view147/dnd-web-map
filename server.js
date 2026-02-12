@@ -1,24 +1,18 @@
 const express = require("express");
 const fs = require("fs");
 const cors = require("cors");
+const bcrypt = require("bcrypt");
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-const DATA_FILE = "data.json";
 const USERS_FILE = "users.json";
+const DATA_FILE = "data.json";
 
 /* ======================
-   LOAD / SAVE
+   UTILS
 ====================== */
-function loadData() {
-  if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify({ characters: [] }, null, 2));
-  }
-  return JSON.parse(fs.readFileSync(DATA_FILE));
-}
-
 function loadUsers() {
   if (!fs.existsSync(USERS_FILE)) {
     fs.writeFileSync(USERS_FILE, JSON.stringify([], null, 2));
@@ -26,40 +20,64 @@ function loadUsers() {
   return JSON.parse(fs.readFileSync(USERS_FILE));
 }
 
-function saveData(data) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-}
-
 function saveUsers(users) {
   fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
 }
 
+function loadData() {
+  if (!fs.existsSync(DATA_FILE)) {
+    fs.writeFileSync(DATA_FILE, JSON.stringify({ characters: [] }, null, 2));
+  }
+  return JSON.parse(fs.readFileSync(DATA_FILE));
+}
+
+function saveData(data) {
+  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+}
+
 /* ======================
-   AUTH
+   AUTH : REGISTER
 ====================== */
-app.post("/register", (req, res) => {
-  const { username, passwordHash } = req.body;
+app.post("/register", async (req, res) => {
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    return res.status(400).json({ success: false });
+  }
+
   const users = loadUsers();
 
   if (users.find(u => u.username === username)) {
-    return res.status(400).json({ message: "มีผู้ใช้นี้แล้ว" });
+    return res.status(400).json({ success: false });
   }
 
-  users.push({ username, passwordHash });
-  saveUsers(users);
+  const passwordHash = await bcrypt.hash(password, 10);
 
+  users.push({
+    username,
+    passwordHash
+  });
+
+  saveUsers(users);
   res.json({ success: true });
 });
 
-app.post("/login", (req, res) => {
-  const { username, passwordHash } = req.body;
-  const users = loadUsers();
+/* ======================
+   AUTH : LOGIN
+====================== */
+app.post("/login", async (req, res) => {
+  const { username, password } = req.body;
 
-  const user = users.find(
-    u => u.username === username && u.passwordHash === passwordHash
-  );
+  const users = loadUsers();
+  const user = users.find(u => u.username === username);
 
   if (!user) {
+    return res.status(401).json({ success: false });
+  }
+
+  const ok = await bcrypt.compare(password, user.passwordHash);
+
+  if (!ok) {
     return res.status(401).json({ success: false });
   }
 
@@ -67,7 +85,7 @@ app.post("/login", (req, res) => {
 });
 
 /* ======================
-   CHARACTER
+   CHARACTER (เดิม)
 ====================== */
 app.post("/character", (req, res) => {
   const data = loadData();
@@ -90,7 +108,7 @@ app.get("/character", (req, res) => {
 });
 
 /* ======================
-   DICE
+   DICE (เดิม)
 ====================== */
 app.post("/dice", (req, res) => {
   const sides = req.body.sides || 20;
@@ -99,8 +117,9 @@ app.post("/dice", (req, res) => {
 });
 
 /* ======================
-   START SERVER
+   START
 ====================== */
 app.listen(3000, () => {
   console.log("Backend running on port 3000");
 });
+
