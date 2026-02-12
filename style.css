@@ -7,9 +7,17 @@
 body {
   background: #111;
   font-family: sans-serif;
+  color: #eee;
+  padding: 20px;
 }
 
-/* แถบบน */
+/* ===== ปุ่มทั่วไป ===== */
+button {
+  cursor: pointer;
+  font-size: 14px;
+}
+
+/* ===== แถบบน ===== */
 .top-bar {
   height: 64px;
   background: #0b0b0b;
@@ -37,18 +45,27 @@ body {
   border: none;
   color: white;
   padding: 6px 12px;
-  cursor: pointer;
 }
 
-/* ภาพหลัก */
+/* ===== input (login / register) ===== */
+input {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  color: white;
+  padding: 8px;
+  margin: 6px 0;
+  width: 200px;
+}
+
+/* ===== ภาพหลัก ===== */
 .hero {
   width: 100%;
-  height: calc(100vh - 64px); /* เต็มจอ ลบแถบบน */
+  height: calc(100vh - 64px);
   overflow: hidden;
 }
 
 .hero img {
   width: 100%;
   height: 100%;
-  object-fit: cover; /* สำคัญ: ภาพพอดีจอ */
+  object-fit: cover;
 }
