@@ -1,11 +1,23 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Main</title>
+  <title>Main Page</title>
 </head>
 <body>
+
   <h1>หน้าเว็บหลัก</h1>
-  <p>เดี๋ยวคุณออกแบบมา แล้วให้ View ทำตาม</p>
+  <p>ยินดีต้อนรับ</p>
+
+  <button onclick="logout()">Logout</button>
+
+  <script src="auth.js"></script>
+  <script>
+    // กันคนเข้าโดยไม่ล็อกอิน
+    if (localStorage.getItem("loggedIn") !== "true") {
+      window.location.href = "login.html";
+    }
+  </script>
+
 </body>
 </html>
