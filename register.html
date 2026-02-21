@@ -5,20 +5,51 @@
   <title>Register</title>
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
+  <h2>สมัครสมาชิก</h2>
 
-  <h2>Register</h2>
+  <input
+    type="email"
+    id="username"
+    placeholder="Email"
+    required
+  >
 
-  <input id="username" type="text" placeholder="Username">
-  <input id="password" type="password" placeholder="Password">
+  <input
+    type="password"
+    id="password"
+    placeholder="Password (อย่างน้อย 6 ตัว)"
+    required
+  >
 
-  <br><br>
+  <button onclick="register()">Register</button>
 
-  <button type="button" onclick="register()">Register</button>
-  <button type="button" onclick="window.location.href='login.html'">
-    กลับไปหน้า Login
-  </button>
+  <p>
+    มีบัญชีแล้ว?
+    <a href="login.html">เข้าสู่ระบบ</a>
+  </p>
 
-  <script src="auth.js"></script>
+  <!-- Firebase core -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBDGBZ4rNXb9Ze9FRcIfZoz9aEcn9FKtYg",
+      authDomain: "web-dnd-view.firebaseapp.com",
+      projectId: "web-dnd-view",
+      storageBucket: "web-dnd-view.firebasestorage.app",
+      messagingSenderId: "647969315171",
+      appId: "1:647969315171:web:05e540f8097270dec29b56",
+      measurementId: "G-KWDN708P4R"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    window.auth = getAuth(app);
+  </script>
+
+  <!-- auth logic -->
+  <script type="module" src="auth.js"></script>
 </body>
 </html>
