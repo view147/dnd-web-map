@@ -1,37 +1,46 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-    <meta charset="UTF-8">
-    <title>Main</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <title>Main</title>
+  <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
-    <h1>ยินดีต้อนรับ</h1>
-    <p id="username"></p>
+  <h1>หน้าเว็บหลัก</h1>
+  <p>ยินดีต้อนรับ</p>
 
-    <button id="logoutBtn">ออกจากระบบ</button>
+  <button onclick="logout()">Logout</button>
 
-    <script>
-        // ตรวจสอบการล็อกอิน
-        const token = localStorage.getItem("token");
-        const user = localStorage.getItem("username");
+  <!-- Firebase init + Auth check -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-        if (!token) {
-            // ถ้าไม่มี token แปลว่ายังไม่ล็อกอิน
-            window.location.href = "login.html";
-        } else {
-            document.getElementById("username").innerText =
-                "ผู้ใช้: " + user;
-        }
+    const firebaseConfig = {
+      apiKey: "AIzaSyBDGBZ4rNXb9Ze9FRcIfZoz9aEcn9FKtYg",
+      authDomain: "web-dnd-view.firebaseapp.com",
+      projectId: "web-dnd-view",
+      storageBucket: "web-dnd-view.firebasestorage.app",
+      messagingSenderId: "647969315171",
+      appId: "1:647969315171:web:05e540f8097270dec29b56"
+    };
 
-        // ปุ่มออกจากระบบ
-        document.getElementById("logoutBtn").addEventListener("click", () => {
-            localStorage.removeItem("token");
-            localStorage.removeItem("username");
-            window.location.href = "login.html";
-        });
-    </script>
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    window.auth = auth;
+
+    // กันคนเข้าโดยไม่ล็อกอิน
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        window.location.href = "login.html";
+      }
+    });
+  </script>
+
+  <!-- auth logic -->
+  <script type="module" src="auth.js"></script>
 
 </body>
 </html>
