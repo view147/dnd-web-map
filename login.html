@@ -5,18 +5,51 @@
   <title>Login</title>
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
+  <h2>Login</h2>
 
-  <h2>Sign In</h2>
+  <input
+    type="email"
+    id="username"
+    placeholder="Email"
+    required
+  >
 
-  <input id="username" type="text" placeholder="Username">
-  <input id="password" type="password" placeholder="Password">
+  <input
+    type="password"
+    id="password"
+    placeholder="Password"
+    required
+  >
 
-  <br><br>
+  <button onclick="login()">Login</button>
 
-  <button type="button" onclick="login()">Sign In</button>
-  <button type="button" onclick="goRegister()">Register</button>
+  <p>
+    ยังไม่มีบัญชี?
+    <a href="register.html">สมัครสมาชิก</a>
+  </p>
 
-  <script src="auth.js"></script>
+  <!-- Firebase core -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBDGBZ4rNXb9Ze9FRcIfZoz9aEcn9FKtYg",
+      authDomain: "web-dnd-view.firebaseapp.com",
+      projectId: "web-dnd-view",
+      storageBucket: "web-dnd-view.firebasestorage.app",
+      messagingSenderId: "647969315171",
+      appId: "1:647969315171:web:05e540f8097270dec29b56",
+      measurementId: "G-KWDN708P4R"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    window.auth = getAuth(app);
+  </script>
+
+  <!-- auth logic -->
+  <script type="module" src="auth.js"></script>
 </body>
 </html>
