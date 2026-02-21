@@ -1,82 +1,56 @@
-const API_URL = "http://localhost:3000";
+// auth.js (ใช้กับ Firebase Auth เท่านั้น)
 
-// ===== LOGIN =====
-async function login() {
-  const username = document.getElementById("username")?.value;
-  const password = document.getElementById("password")?.value;
+// import Firebase Auth จาก CDN
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-  if (!username || !password) {
-    alert("กรุณากรอก Username และ Password");
-    return;
-  }
+// ดึง auth ที่ถูก init ไว้แล้วจาก firebase.js
+const auth = window.auth;
 
-  try {
-    const res = await fetch(`${API_URL}/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password })
+/* =====================
+   LOGIN
+===================== */
+window.login = function () {
+  const email = document.getElementById("username").value;
+  const password = document.getElementById("password").value;
+
+  signInWithEmailAndPassword(auth, email, password)
+    .then(() => {
+      window.location.href = "main.html";
+    })
+    .catch((error) => {
+      alert("ล็อกอินไม่สำเร็จ");
+      console.error(error);
     });
+};
 
-    if (!res.ok) {
-      alert("Username หรือ Password ผิด");
-      return;
-    }
+/* =====================
+   REGISTER
+===================== */
+window.register = function () {
+  const email = document.getElementById("username").value;
+  const password = document.getElementById("password").value;
 
-    localStorage.setItem("loggedIn", "true");
-    localStorage.setItem("username", username);
-
-    window.location.href = "main.html";
-  } catch (err) {
-    alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
-  }
-}
-
-// ===== REGISTER =====
-async function register() {
-  const username = document.getElementById("username")?.value;
-  const password = document.getElementById("password")?.value;
-
-  if (!username || !password) {
-    alert("กรุณากรอก Username และ Password");
-    return;
-  }
-
-  try {
-    const res = await fetch(`${API_URL}/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password })
-    });
-
-    if (!res.ok) {
-      alert("มีผู้ใช้นี้แล้ว");
-      return;
-    }
-
-    alert("สมัครสำเร็จ");
-    window.location.href = "login.html";
-  } catch (err) {
-    alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
-  }
-}
-
-// ===== NAVIGATION =====
-function goRegister() {
-  window.location.href = "register.html";
-}
-
-function logout() {
-  localStorage.removeItem("loggedIn");
-  localStorage.removeItem("username");
-  window.location.href = "login.html";
-}
-
-// ===== AUTO BIND TOP BAR LOGIN =====
-document.addEventListener("DOMContentLoaded", () => {
-  const loginBtn = document.querySelector(".login");
-  if (loginBtn) {
-    loginBtn.addEventListener("click", () => {
+  createUserWithEmailAndPassword(auth, email, password)
+    .then(() => {
+      alert("สมัครสมาชิกสำเร็จ");
       window.location.href = "login.html";
+    })
+    .catch((error) => {
+      alert("สมัครไม่สำเร็จ");
+      console.error(error);
     });
-  }
-});
+};
+
+/* =====================
+   LOGOUT
+===================== */
+window.logout = function () {
+  signOut(auth).then(() => {
+    window.location.href = "login.html";
+  });
+};
