@@ -32,6 +32,26 @@
 
   <!-- ✅ เพิ่มแค่นี้ -->
   <script src="auth.js"></script>
+<script type="module">
+  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+  onAuthStateChanged(window.auth, (user) => {
+    const signInBtn = document.querySelector(".login");
+    const userBox = document.querySelector(".user");
+
+    if (user) {
+      // ล็อกอินแล้ว
+      signInBtn.style.display = "none";
+      userBox.innerHTML = `
+        <span>${user.email}</span>
+        <button onclick="logout()">Logout</button>
+      `;
+    } else {
+      // ยังไม่ล็อกอิน
+      signInBtn.style.display = "block";
+    }
+  });
+</script>
 
 </body>
 </html>
