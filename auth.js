@@ -16,7 +16,7 @@ window.login = function () {
 
   signInWithEmailAndPassword(window.auth, email, password)
     .then(() => {
-      window.location.href = "main.html";
+      window.location.href = "index.html";
     })
     .catch((error) => {
       alert("เข้าสู่ระบบไม่สำเร็จ");
