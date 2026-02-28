@@ -3,9 +3,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "API_KEY",
-  authDomain: "PROJECT.firebaseapp.com",
-  projectId: "PROJECT_ID",
+  apiKey: "AIzaSyAXNRDQvVyfnQKo_aUWP_bKAo4Np3oMXac",
+  authDomain: "dnd-view-web.firebaseapp.com",
+  projectId: "dnd-view-web",
 };
 
 const app = initializeApp(firebaseConfig);
