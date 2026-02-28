@@ -46,6 +46,19 @@
     <span>LORE</span>
     <span>WORLD</span>
   </section>
+<script src="auth.js"></script>
+<script>
+  const authBox = document.querySelector(".auth");
 
+  if (isLoggedIn()) {
+    authBox.innerHTML = `
+      <button class="btn ghost" onclick="logout()">Logout</button>
+    `;
+  } else {
+    authBox.innerHTML = `
+      <button class="btn ghost" onclick="location.href='login.html'">Sign In</button>
+    `;
+  }
+</script>
 </body>
 </html>
