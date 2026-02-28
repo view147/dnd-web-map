@@ -1,6 +1,8 @@
 // auth.js
 // Firebase Auth only (GitHub Pages friendly)
 
+import { auth } from "./firebase.js";
+
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -12,7 +14,7 @@ import {
    AUTH STATE (หัวใจหลัก)
    ทำงานเหมือน D&D Beyond
 ===================== */
-onAuthStateChanged(window.auth, (user) => {
+onAuthStateChanged(auth, (user) => {
   const loginBtn = document.getElementById("loginBtn");
   const logoutBtn = document.getElementById("logoutBtn");
   const userText = document.getElementById("userText");
@@ -27,7 +29,7 @@ onAuthStateChanged(window.auth, (user) => {
     if (logoutBtn) logoutBtn.style.display = "none";
     if (loginBtn) loginBtn.style.display = "inline-block";
 
-    // ถ้าอยู่หน้า main / หน้า protected → เด้งไป login
+    // ถ้าอยู่หน้า protected → เด้งไป login
     if (location.pathname.includes("main.html")) {
       window.location.href = "login.html";
     }
@@ -46,7 +48,7 @@ window.login = function () {
     return;
   }
 
-  signInWithEmailAndPassword(window.auth, email, password)
+  signInWithEmailAndPassword(auth, email, password)
     .then(() => {
       window.location.href = "index.html";
     })
@@ -73,7 +75,7 @@ window.register = function () {
     return;
   }
 
-  createUserWithEmailAndPassword(window.auth, email, password)
+  createUserWithEmailAndPassword(auth, email, password)
     .then(() => {
       alert("สมัครสมาชิกสำเร็จ");
       window.location.href = "login.html";
@@ -88,7 +90,7 @@ window.register = function () {
    LOGOUT
 ===================== */
 window.logout = function () {
-  signOut(window.auth).then(() => {
+  signOut(auth).then(() => {
     window.location.href = "index.html";
   });
 };
