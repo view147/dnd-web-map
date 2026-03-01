@@ -1,69 +1,87 @@
 /* =========================
-   SIMPLE PLAYER AUTH SYSTEM
-   (No email, no backend)
+   PLAYER LOGIN SYSTEM
+   (Firebase Firestore)
 ========================= */
 
-// สุ่มรหัสผู้เล่น
-function generateCode() {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code = "PALE-";
-  for (let i = 0; i < 6; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return code;
-}
+import { db } from "./firebase.js";
+import {
+  doc,
+  getDoc,
+  setDoc
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 /* =====================
    REGISTER
 ===================== */
-window.register = function () {
-  const code = generateCode();
+window.register = async function () {
+  const name = document.getElementById("playerName").value.trim();
+  const pin = document.getElementById("pin").value.trim();
+  const msg = document.getElementById("msg");
 
-  localStorage.setItem("playerCode", code);
-  localStorage.setItem("loggedIn", "true");
+  if (!name || !pin) {
+    msg.textContent = "กรุณากรอกชื่อและ PIN";
+    return;
+  }
 
-  alert(
-    "🎲 Player Created!\n\n" +
-    "Your Player Code:\n" +
-    code +
-    "\n\n⚠️ Please save this code!"
-  );
+  if (pin.length !== 6) {
+    msg.textContent = "PIN ต้อง 6 ตัว";
+    return;
+  }
 
+  const ref = doc(db, "players", name);
+  const snap = await getDoc(ref);
+
+  if (snap.exists()) {
+    msg.textContent = "ชื่อนี้ถูกใช้แล้ว";
+    return;
+  }
+
+  await setDoc(ref, {
+    pin,
+    createdAt: Date.now()
+  });
+
+  localStorage.setItem("player", name);
+  msg.textContent = "สมัครสำเร็จ!";
   window.location.href = "index.html";
 };
 
 /* =====================
    LOGIN
 ===================== */
-window.login = function () {
-  const input = document.getElementById("playerCode").value.trim();
-  const saved = localStorage.getItem("playerCode");
+window.login = async function () {
+  const name = document.getElementById("playerName").value.trim();
+  const pin = document.getElementById("pin").value.trim();
   const msg = document.getElementById("msg");
 
-  if (!saved) {
-    msg.textContent = "❌ No player found. Create one first.";
+  const ref = doc(db, "players", name);
+  const snap = await getDoc(ref);
+
+  if (!snap.exists()) {
+    msg.textContent = "ไม่พบผู้เล่น";
     return;
   }
 
-  if (input === saved) {
-    localStorage.setItem("loggedIn", "true");
-    window.location.href = "index.html";
-  } else {
-    msg.textContent = "❌ Invalid Player Code";
+  if (snap.data().pin !== pin) {
+    msg.textContent = "PIN ไม่ถูกต้อง";
+    return;
   }
+
+  localStorage.setItem("player", name);
+  window.location.href = "index.html";
 };
 
 /* =====================
    LOGOUT
 ===================== */
 window.logout = function () {
-  localStorage.removeItem("loggedIn");
-  window.location.href = "index.html";
+  localStorage.removeItem("player");
+  window.location.href = "login.html";
 };
 
 /* =====================
    AUTH CHECK
 ===================== */
-window.isLoggedIn = function () {
-  return localStorage.getItem("loggedIn") === "true";
+window.getPlayer = function () {
+  return localStorage.getItem("player");
 };
