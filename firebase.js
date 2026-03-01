@@ -7,9 +7,9 @@ const firebaseConfig = {
   authDomain: "web-dnd-view.firebaseapp.com",
   projectId: "web-dnd-view",
   storageBucket: "web-dnd-view.firebasestorage.app",
-  messagingSenderId: "647969315171",
-  appId: "1:647969315171:web:05e540f8097270dec29b56"
+  messagingSenderId: "827437332590",
+  appId: "1:827437332590:web:009f28fd4e7a6c0b678e7f"
 };
 
-export const app = initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
