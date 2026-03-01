@@ -10,22 +10,15 @@
   <div class="login-box">
     <h2>Player Access</h2>
 
-    <input
-      id="playerCode"
-      placeholder="Enter Player Code"
-    />
+    <input id="playerName" placeholder="Player Name">
+    <input id="pin" placeholder="PIN 6 ตัว">
 
-    <button onclick="login()">Enter World</button>
-
-    <hr>
-
-    <button class="ghost" onclick="register()">
-      Create New Player
-    </button>
+    <button onclick="login()">เข้าเกม</button>
+    <button onclick="register()">สมัครใหม่</button>
 
     <p id="msg"></p>
   </div>
 
-  <script src="auth.js"></script>
+  <script type="module" src="auth.js"></script>
 </body>
 </html>
