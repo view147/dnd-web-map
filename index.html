@@ -1,64 +1,36 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8" />
-  <title>Pale – Character Builder</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <title>Main</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <!-- Top Navigation -->
-  <header class="top-bar">
-    <div class="logo">PALE</div>
+<header class="top-bar">
+  <div class="logo">pale</div>
 
-    <nav class="menu">
-      <a href="#">Collections</a>
-      <a href="#">Library</a>
-      <a href="#">Tools</a>
-      <a href="#">Rules</a>
-    </nav>
+  <div class="user" id="userBox"></div>
+</header>
 
-    <div class="auth">
-      <button class="btn ghost">Sign In</button>
-      <button class="btn red">Sign Up</button>
-    </div>
-  </header>
+<section class="hero">
+  <img src="town2.jpg">
+</section>
 
-  <!-- Hero Section -->
-  <section class="hero">
-    <div class="hero-content">
-      <h1>Build Your Character</h1>
-      <p>
-        Create and manage your characters.<br>
-        Shape your own world, your own rules.
-      </p>
-
-      <button class="btn big red">
-        Build a Character →
-      </button>
-    </div>
-  </section>
-
-  <!-- Section Tabs -->
-  <section class="tabs">
-    <span class="active">CHARACTER</span>
-    <span>MAPS</span>
-    <span>LORE</span>
-    <span>WORLD</span>
-  </section>
-<script src="auth.js"></script>
+<script type="module" src="auth.js"></script>
 <script>
-  const authBox = document.querySelector(".auth");
+  const userBox = document.getElementById("userBox");
+  const player = localStorage.getItem("player");
 
-  if (isLoggedIn()) {
-    authBox.innerHTML = `
-      <button class="btn ghost" onclick="logout()">Logout</button>
+  if (player) {
+    userBox.innerHTML = `
+      <span>${player}</span>
+      <button onclick="logout()">Logout</button>
     `;
   } else {
-    authBox.innerHTML = `
-      <button class="btn ghost" onclick="location.href='login.html'">Sign In</button>
-    `;
+    window.location.href = "login.html";
   }
 </script>
+
 </body>
 </html>
