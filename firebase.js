@@ -2,17 +2,17 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 
 const firebaseConfig = {
 
-apiKey: "YOUR_KEY",
+apiKey: "AIzaSyD_ELoo4XEXn9Xoo7zulw7yG78yAsvDoEU",
 
-authDomain: "YOUR_PROJECT.firebaseapp.com",
+authDomain: "dnd-pale-character-5ec73.firebaseapp.com",
 
-projectId: "YOUR_PROJECT",
+projectId: "dnd-pale-character-5ec73",
 
-storageBucket: "YOUR_PROJECT.appspot.com",
+storageBucket: "dnd-pale-character-5ec73.firebasestorage.app",
 
-messagingSenderId: "XXXX",
+messagingSenderId: "514277998310",
 
-appId: "XXXX"
+appId: "1:514277998310:web:35ca063d3021cc70b9c527"
 
 }
 
