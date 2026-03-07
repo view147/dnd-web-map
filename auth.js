@@ -1,19 +1,28 @@
-import { getAuth, signInWithPopup, GoogleAuthProvider, signOut }
-
+import { auth } from "../firebase/firebase-config.js"
+import { signInWithPopup, GoogleAuthProvider, signOut } 
 from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"
-
-const auth = getAuth()
 
 const provider = new GoogleAuthProvider()
 
-document.getElementById("loginBtn").onclick = () => {
+const loginBtn = document.getElementById("loginBtn")
+const logoutBtn = document.getElementById("logoutBtn")
 
-signInWithPopup(auth, provider)
-
+loginBtn.onclick = () => {
+    signInWithPopup(auth, provider)
+    .then((result) => {
+        console.log("Logged in:", result.user)
+    })
+    .catch((error) => {
+        console.error(error)
+    })
 }
 
-document.getElementById("logoutBtn").onclick = () => {
-
-signOut(auth)
-
+logoutBtn.onclick = () => {
+    signOut(auth)
+    .then(() => {
+        console.log("Logged out")
+    })
+    .catch((error) => {
+        console.error(error)
+    })
 }
