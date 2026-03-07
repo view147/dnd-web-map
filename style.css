@@ -1,12 +1,15 @@
 body{
 margin:0;
-font-family:Arial;
+font-family:Arial, sans-serif;
 background:#0e141b;
 color:white;
 }
 
+/* HEADER */
+
 header{
 display:flex;
+align-items:center;
 justify-content:space-between;
 padding:15px 40px;
 background:#111827;
@@ -18,15 +21,39 @@ font-size:22px;
 font-weight:bold;
 }
 
+/* NAVIGATION */
+
 nav a{
 margin:0 12px;
 color:white;
 text-decoration:none;
+font-size:14px;
 }
+
+nav a:hover{
+color:#ff3b3b;
+}
+
+/* ACCOUNT BUTTONS */
+
+.account button{
+margin-left:10px;
+padding:6px 12px;
+background:#1f2937;
+border:none;
+color:white;
+cursor:pointer;
+}
+
+.account button:hover{
+background:#374151;
+}
+
+/* HERO SECTION */
 
 .hero{
 height:600px;
-background:url("../assets/hero.jpg") center/cover;
+background:url("../assets/hero.jpg") center/cover no-repeat;
 display:flex;
 align-items:center;
 padding-left:80px;
@@ -34,7 +61,15 @@ padding-left:80px;
 
 .hero-text h1{
 font-size:48px;
+margin:0;
 }
+
+.hero-text p{
+margin-top:10px;
+color:#cbd5e1;
+}
+
+/* START BUTTON */
 
 .start-btn{
 margin-top:20px;
@@ -43,4 +78,9 @@ background:#ff3b3b;
 border:none;
 color:white;
 cursor:pointer;
+font-size:16px;
+}
+
+.start-btn:hover{
+background:#ff5a5a;
 }
