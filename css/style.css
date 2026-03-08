@@ -35,39 +35,6 @@ nav a:hover{
 color:#ff3b3b;
 }
 
-/* AUTH BUTTONS */
-
-.auth-buttons{
-display:flex;
-gap:10px;
-}
-
-.auth-buttons button{
-padding:8px 16px;
-border:none;
-border-radius:6px;
-cursor:pointer;
-font-weight:bold;
-}
-
-#loginBtn{
-background:#2563eb;
-color:white;
-}
-
-#logoutBtn{
-background:#374151;
-color:white;
-}
-
-#loginBtn:hover{
-background:#3b82f6;
-}
-
-#logoutBtn:hover{
-background:#4b5563;
-}
-
 /* HERO */
 
 .hero{
@@ -205,4 +172,5 @@ width:100%;
 max-width:300px;
 }
 
+}
 }
