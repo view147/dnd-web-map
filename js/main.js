@@ -14,16 +14,17 @@ initStartButton()
 
 function initStartButton(){
 
-const startBtn = document.querySelector(".start-btn")
+const startBtns = document.querySelectorAll(".start-btn")
 
-if(!startBtn) return
+if(startBtns.length === 0) return
 
-startBtn.addEventListener("click", () => {
+startBtns.forEach(btn => {
 
-console.log("Start Game clicked")
+btn.addEventListener("click", () => {
 
-// ไปหน้า map
-window.location.href = "map.html"
+console.log("Chapter clicked")
+
+})
 
 })
 
