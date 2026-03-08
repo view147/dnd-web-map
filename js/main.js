@@ -23,7 +23,7 @@ startBtn.addEventListener("click", () => {
 console.log("Start Game clicked")
 
 // ไปหน้า map
-window.location.href = "pages/map.html"
+window.location.href = "map.html"
 
 })
 
