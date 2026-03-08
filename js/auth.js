@@ -8,17 +8,51 @@ signOut
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"
 
 const auth = getAuth(app)
-
 const provider = new GoogleAuthProvider()
 
-document.getElementById("loginBtn").onclick = () => {
+const loginBtn = document.getElementById("loginBtn")
+const logoutBtn = document.getElementById("logoutBtn")
 
-signInWithPopup(auth, provider)
+/* LOGIN */
+
+if(loginBtn){
+
+loginBtn.onclick = async () => {
+
+try{
+
+const result = await signInWithPopup(auth, provider)
+
+console.log("User logged in:", result.user)
+
+}catch(error){
+
+console.error("Login error:", error)
 
 }
 
-document.getElementById("logoutBtn").onclick = () => {
+}
 
-signOut(auth)
+}
+
+/* LOGOUT */
+
+if(logoutBtn){
+
+logoutBtn.onclick = async () => {
+
+try{
+
+await signOut(auth)
+
+console.log("User logged out")
+
+}catch(error){
+
+console.error("Logout error:", error)
+
+}
+
+}
 
 }
