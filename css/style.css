@@ -1,0 +1,46 @@
+body{
+margin:0;
+font-family:Arial;
+background:#0e141b;
+color:white;
+}
+
+header{
+display:flex;
+justify-content:space-between;
+padding:15px 40px;
+background:#111827;
+}
+
+.logo{
+color:#ff3b3b;
+font-size:22px;
+font-weight:bold;
+}
+
+nav a{
+margin:0 12px;
+color:white;
+text-decoration:none;
+}
+
+.hero{
+height:600px;
+background:url("../assets/hero.jpg") center/cover;
+display:flex;
+align-items:center;
+padding-left:80px;
+}
+
+.hero-text h1{
+font-size:48px;
+}
+
+.start-btn{
+margin-top:20px;
+padding:12px 24px;
+background:#ff3b3b;
+border:none;
+color:white;
+cursor:pointer;
+}
