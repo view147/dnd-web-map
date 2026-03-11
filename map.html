@@ -11,12 +11,48 @@ background:#0b0f1a;
 color:white;
 font-family:sans-serif;
 text-align:center;
+margin:0;
+padding:0;
 }
 
-img{
-max-width:90%;
-margin-top:40px;
+h1{
+margin-top:30px;
+}
+
+.map-container{
+max-width:1000px;
+margin:30px auto;
+padding:20px;
+}
+
+.map-image{
+max-width:100%;
 border-radius:10px;
+box-shadow:0 0 20px rgba(0,0,0,0.6);
+}
+
+.chapter-list{
+margin-top:40px;
+display:flex;
+flex-wrap:wrap;
+justify-content:center;
+gap:20px;
+}
+
+.chapter-btn{
+padding:14px 26px;
+background:#1f2937;
+color:white;
+text-decoration:none;
+border-radius:8px;
+font-weight:bold;
+transition:0.2s;
+border:1px solid #374151;
+}
+
+.chapter-btn:hover{
+background:#ff3b3b;
+border-color:#ff3b3b;
 }
 </style>
 
@@ -26,7 +62,35 @@ border-radius:10px;
 
 <h1>World Map</h1>
 
-<img src="maps/world_map.jpg">
+<div class="map-container">
+    <!-- ภาพรวมของโลก -->
+    <img src="maps/world_map.jpg" class="map-image">
+</div>
+
+<!-- เลือกภาค -->
+<div class="chapter-list">
+
+    <a class="chapter-btn" href="PUT_CANVA_LINK_HERE" target="_blank">
+        ภาคที่ 1
+    </a>
+
+    <a class="chapter-btn" href="PUT_CANVA_LINK_HERE" target="_blank">
+        ภาคที่ 2
+    </a>
+
+    <a class="chapter-btn" href="PUT_CANVA_LINK_HERE" target="_blank">
+        ภาคที่ 3
+    </a>
+
+    <a class="chapter-btn" href="PUT_CANVA_LINK_HERE" target="_blank">
+        ภาคที่ 4
+    </a>
+
+    <a class="chapter-btn" href="PUT_CANVA_LINK_HERE" target="_blank">
+        ภาคที่ 5
+    </a>
+
+</div>
 
 </body>
 </html>
