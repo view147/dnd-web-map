@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>Skill Check - กดหลายตัวอักษร</title>
+  <style>
+    body {
+      background: #111;
+      color: white;
+      text-align: center;
+      font-family: sans-serif;
+      padding: 20px;
+    }
+    #letter-box {
+      font-size: 60px;
+      padding: 30px;
+      margin: 30px auto;
+      border: 5px solid #555;
+      border-radius: 20px;
+      min-width: 300px;
+      background: #222;
+      display: none;
+    }
+    input {
+      margin: 5px;
+      padding: 5px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Skill Check - กดตัวอักษรตามลำดับ</h1>
+<label>จำนวนรอบทั้งหมด: <input type="number" id="rounds" value="5" min="1" max="20"></label><br>
+<label>เวลาตอบต่อรอบ (วินาที): <input type="number" id="time-limit" value="4" step="0.1" min="0.5" max="10"></label><br>
+<label>จำนวนตัวอักษรต่อรอบ: <input type="number" id="letter-count" value="3" min="1" max="10"></label><br>
+<button onclick="startGame()">เริ่มเกม</button>
+
+<div id="letter-box">A B C</div>
+<p id="result"></p>
+<p id="summary"></p>
+
+<audio id="success-sound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
+<audio id="fail-sound" src="https://actions.google.com/sounds/v1/cartoon/cartoon_boing.ogg"></audio>
+
+<script>
+  const letterBox = document.getElementById("letter-box");
+  const result = document.getElementById("result");
+  const summary = document.getElementById("summary");
+  const successSound = document.getElementById("success-sound");
+  const failSound = document.getElementById("fail-sound");
+
+  let rounds = 5, timeLimit = 4000, letterCount = 3;
+  let currentLetters = [], currentIndex = 0, currentRound = 0;
+  let results = [], timeoutId = null, isWaiting = false;
+
+  function randomLetters(count) {
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    let result = [];
+    for (let i = 0; i < count; i++) {
+      result.push(letters[Math.floor(Math.random() * letters.length)]);
+    }
+    return result;
+  }
+
+  function startGame() {
+    rounds = parseInt(document.getElementById("rounds").value);
+    timeLimit = parseFloat(document.getElementById("time-limit").value) * 1000;
+    letterCount = parseInt(document.getElementById("letter-count").value);
+    currentRound = 0;
+    results = [];
+    summary.innerHTML = "";
+    result.textContent = "";
+    nextRound();
+  }
+
+  function nextRound() {
+    if (currentRound >= rounds) {
+      showSummary();
+      return;
+    }
+
+    currentRound++;
+    currentLetters = randomLetters(letterCount);
+    currentIndex = 0;
+    letterBox.textContent = currentLetters.join(" ");
+    letterBox.style.display = "block";
+    result.textContent = `รอบที่ ${currentRound}: กดตามลำดับ`;
+    isWaiting = true;
+
+    timeoutId = setTimeout(() => {
+      if (isWaiting) {
+        failSound.play();
+        results.push(`รอบ ${currentRound}: ❌ พลาด (ไม่กดครบ)`);
+        isWaiting = false;
+        setTimeout(nextRound, 1000);
+      }
+    }, timeLimit);
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (!isWaiting) return;
+    const key = e.key.toUpperCase();
+    if (key === currentLetters[currentIndex]) {
+      currentIndex++;
+      if (currentIndex >= currentLetters.length) {
+        clearTimeout(timeoutId);
+        successSound.play();
+        results.push(`รอบ ${currentRound}: ✅ สำเร็จ (กดครบ ${currentLetters.join("")})`);
+        result.textContent = "✅ กดถูกครบแล้ว!";
+        isWaiting = false;
+        setTimeout(nextRound, 1000);
+      }
+    } else {
+      clearTimeout(timeoutId);
+      failSound.play();
+      results.push(`รอบ ${currentRound}: ❌ ผิด (กด ${key} แทน ${currentLetters[currentIndex]})`);
+      result.textContent = "❌ กดผิด!";
+      isWaiting = false;
+      setTimeout(nextRound, 1000);
+    }
+  });
+
+  function showSummary() {
+    letterBox.style.display = "none";
+    summary.innerHTML = "<strong>ผลลัพธ์:</strong><br>" + results.map((r, i) => `รอบ ${i+1}: ${r}`).join("<br>");
+  }
+</script>
+
+</body>
+</html>
