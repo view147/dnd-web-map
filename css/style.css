@@ -39,7 +39,7 @@ color:#ff3b3b;
 
 .hero{
 height:600px;
-background:url("../maps/web.jpg") center/cover;
+background:url("maps/web.jpg") center/cover;
 display:flex;
 align-items:center;
 padding-left:80px;
