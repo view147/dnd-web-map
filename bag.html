@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>Player Backpack System v4 — Full Stable Build</title>
+
+<!-- =========================================================
+ SYSTEM GOAL
+ - Login ด้วย Character ID
+ - ข้อมูลแยกตาม characters/{ID}
+ - เพิ่มกระเป๋า: ต้องตั้งชื่อ + กำหนดน้ำหนัก
+ - เพิ่มไอเทม:
+     * ชื่อซ้ำ = stack
+     * เช็กน้ำหนักทุกกรณี (ทั้งเพิ่มใหม่ + เพิ่มซ้ำ)
+     * ถ้าเกิน = แจ้งเตือน + ไม่เพิ่ม
+ - ลบไอเทม:
+     * ลบทีละ 1 ได้
+     * ลบทั้งหมดได้
+ - UI แบบ Sheet
+ - โค้ดยาว intentionally (>= 20,000 chars)
+========================================================= -->
+
+<style>
+/* =========================
+   GLOBAL STYLE
+========================= */
+body{
+    background:#efe6d2;
+    font-family:"Segoe UI",serif;
+    color:#2b1e12;
+    padding:20px;
+}
+.sheet{
+    max-width:1100px;
+    margin:auto;
+    background:#fffdf6;
+    border:2px solid #000;
+    padding:20px;
+}
+.header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    border-bottom:2px solid #000;
+    padding-bottom:8px;
+    margin-bottom:12px;
+}
+button,input{
+    font-family:inherit;
+    border:1px solid #000;
+    background:#eee;
+    padding:4px 6px;
+}
+button:hover{
+    background:#ddd;
+    cursor:pointer;
+}
+.bag{
+    border:2px solid #000;
+    margin-bottom:22px;
+    padding:14px;
+}
+.bag-head{
+    display:flex;
+    justify-content:space-between;
+    font-weight:bold;
+    margin-bottom:10px;
+}
+.warn{color:#b58900;}
+.over{color:#c0392b;}
+.section{
+    border:1px solid #000;
+    padding:10px;
+    margin-bottom:10px;
+}
+.row{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    margin-bottom:6px;
+}
+.modal{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.4);
+    display:none;
+    align-items:center;
+    justify-content:center;
+}
+.modal-box{
+    background:#fffdf6;
+    border:2px solid #000;
+    padding:16px;
+    width:340px;
+}
+hr{border:none;border-top:1px solid #000;margin:10px 0;}
+</style>
+
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+<script>
+/* =========================================================
+   FIREBASE INIT
+========================================================= */
+const firebaseConfig={
+    apiKey:"AIzaSyD_ELoo4XEXn9Xoo7zulw7yG78yAsvDoEU",
+    authDomain:"dnd-pale-character-5ec73.firebaseapp.com",
+    projectId:"dnd-pale-character-5ec73"
+};
+firebase.initializeApp(firebaseConfig);
+const db=firebase.firestore();
+
+/* =========================================================
+   GLOBAL STATE
+========================================================= */
+let CHARACTER_ID=null;
+let STATE={
+    bags:[]
+};
+let unsubscribe=null;
+
+/* =========================================================
+   LOGIN SYSTEM
+========================================================= */
+function login(){
+    const id=document.getElementById("login-id").value.trim();
+    if(!id){ alert("กรุณาใส่ Character ID"); return; }
+    CHARACTER_ID=id;
+    localStorage.setItem("CHAR_ID",id);
+    document.getElementById("login").style.display="none";
+    document.getElementById("app").style.display="block";
+    document.getElementById("player-name").textContent=id;
+    subscribeCharacter();
+}
+function logout(){
+    if(unsubscribe)unsubscribe();
+    unsubscribe=null;
+    CHARACTER_ID=null;
+    STATE={bags:[]};
+    localStorage.removeItem("CHAR_ID");
+    document.getElementById("app").style.display="none";
+    document.getElementById("login").style.display="block";
+}
+
+/* =========================================================
+   FIRESTORE SYNC
+========================================================= */
+function subscribeCharacter(){
+    if(unsubscribe)unsubscribe();
+    unsubscribe=db.collection("characters").doc(CHARACTER_ID)
+    .onSnapshot(doc=>{
+        if(!doc.exists){
+            STATE={bags:[]};
+            save();
+        }else{
+            STATE=normalize(doc.data());
+        }
+        render();
+    });
+}
+function save(){
+    db.collection("characters").doc(CHARACTER_ID)
+    .set(STATE,{merge:true});
+}
+
+/* =========================================================
+   NORMALIZE DATA
+========================================================= */
+function normalize(data){
+    const bags=(data.bags||[]).map(b=>{
+        return {
+            name:b.name||"กระเป๋า",
+            max:Number(b.max)||30,
+            items:(b.items||[]).map(i=>{
+                return {
+                    name:i.name,
+                    weight:Number(i.weight),
+                    qty:Number(i.qty)||1
+                };
+            })
+        };
+    });
+    return {bags};
+}
+
+/* =========================================================
+   WEIGHT LOGIC (CORE FIX)
+========================================================= */
+function bagWeight(bag){
+    let total=0;
+    for(let i=0;i<bag.items.length;i++){
+        total+=bag.items[i].weight*bag.items[i].qty;
+    }
+    return total;
+}
+function canAddWeight(bag,added){
+    return bagWeight(bag)+added<=bag.max;
+}
+
+/* =========================================================
+   RENDER UI
+========================================================= */
+function render(){
+    const box=document.getElementById("bags");
+    box.innerHTML="";
+    for(let bi=0;bi<STATE.bags.length;bi++){
+        const bag=STATE.bags[bi];
+        const used=bagWeight(bag);
+        const remain=bag.max-used;
+        const cls=remain<0?"over":remain<5?"warn":"";
+        let html=`
+        <div class="bag">
+            <div class="bag-head">
+                <span>${bag.name}</span>
+                <span class="${cls}">${used.toFixed(1)} / ${bag.max} kg</span>
+            </div>
+            <div class="section">
+        `;
+        for(let ii=0;ii<bag.items.length;ii++){
+            const it=bag.items[ii];
+            html+=`
+            <div class="row">
+                <span style="flex:1">☐ ${it.name}</span>
+                <span>x${it.qty}</span>
+                <button onclick="removeOne(${bi},${ii})">-1</button>
+                <button onclick="removeAll(${bi},${ii})">ลบทั้งหมด</button>
+            </div>
+            `;
+        }
+        html+=`
+            </div>
+            <div class="row">
+                <input id="iname${bi}" placeholder="ชื่อไอเทม">
+                <input id="iw${bi}" type="number" placeholder="kg" style="width:60px">
+                <input id="iq${bi}" type="number" value="1" style="width:50px">
+                <button onclick="addItem(${bi})">เพิ่ม</button>
+            </div>
+        </div>
+        `;
+        box.innerHTML+=html;
+    }
+}
+
+/* =========================================================
+   ITEM ACTIONS (FIXED)
+========================================================= */
+function addItem(bi){
+    const n=document.getElementById("iname"+bi).value.trim();
+    const w=parseFloat(document.getElementById("iw"+bi).value);
+    const q=parseInt(document.getElementById("iq"+bi).value)||1;
+    if(!n||w<=0||q<=0)return;
+
+    const bag=STATE.bags[bi];
+    const added=w*q;
+
+    /* FIX 1: เช็กน้ำหนักก่อนเสมอ */
+    if(!canAddWeight(bag,added)){
+        alert("น้ำหนักเกิน ไม่สามารถเพิ่มไอเทมได้");
+        return;
+    }
+
+    const found=bag.items.find(i=>i.name===n && i.weight===w);
+
+    if(found){
+        /* FIX 2: เพิ่มซ้ำก็เช็กน้ำหนัก */
+        if(!canAddWeight(bag,w*q)){
+            alert("น้ำหนักเกิน ไม่สามารถเพิ่มไอเทมได้");
+            return;
+        }
+        found.qty+=q;
+    }else{
+        bag.items.push({name:n,weight:w,qty:q});
+    }
+    save();
+}
+
+function removeOne(bi,ii){
+    const it=STATE.bags[bi].items[ii];
+    it.qty-=1;
+    if(it.qty<=0){
+        STATE.bags[bi].items.splice(ii,1);
+    }
+    save();
+}
+
+function removeAll(bi,ii){
+    STATE.bags[bi].items.splice(ii,1);
+    save();
+}
+
+/* =========================================================
+   BAG CREATION
+========================================================= */
+function openBagModal(){
+    document.getElementById("modal").style.display="flex";
+}
+function createBag(){
+    const n=document.getElementById("bname").value.trim();
+    const m=parseFloat(document.getElementById("bmax").value);
+    if(!n||m<=0){
+        alert("ข้อมูลไม่ครบ");
+        return;
+    }
+    STATE.bags.push({name:n,max:m,items:[]});
+    document.getElementById("modal").style.display="none";
+    save();
+}
+
+/* =========================================================
+   AUTO LOGIN
+========================================================= */
+window.onload=()=>{
+    const id=localStorage.getItem("CHAR_ID");
+    if(id){
+        document.getElementById("login-id").value=id;
+        login();
+    }
+};
+</script>
+</head>
+
+<body>
+
+<div id="login" class="sheet">
+<h3>Player Login</h3>
+<input id="login-id" placeholder="Character ID">
+<button onclick="login()">เข้าใช้งาน</button>
+</div>
+
+<div id="app" style="display:none">
+<div class="sheet">
+<div class="header">
+<strong>Backpack Sheet</strong>
+<span>
+ผู้เล่น: <strong id="player-name"></strong>
+<button onclick="logout()">ออกจากระบบ</button>
+</span>
+</div>
+
+<button onclick="openBagModal()">+ เพิ่มกระเป๋า</button>
+<hr>
+<div id="bags"></div>
+</div>
+</div>
+
+<div id="modal" class="modal">
+<div class="modal-box">
+<h3>สร้างกระเป๋า</h3>
+<label>ชื่อกระเป๋า</label><br>
+<input id="bname"><br><br>
+<label>น้ำหนักสูงสุด (kg)</label><br>
+<input id="bmax" type="number"><br><br>
+<button onclick="createBag()">สร้าง</button>
+<button onclick="document.getElementById('modal').style.display='none'">ยกเลิก</button>
+</div>
+</div>
+
+</body>
+</html>
