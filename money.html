@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Money Bag System</title>
+
+<style>
+
+body{
+
+    margin:0;
+    padding:20px;
+
+    background:#1b1208;
+
+    color:white;
+
+    font-family:tahoma;
+
+}
+
+/* ========================= */
+/* LOGIN */
+/* ========================= */
+
+.loginBox{
+
+    width:400px;
+
+    margin:40px auto;
+
+    background:#3d2815;
+
+    border:2px solid #c58a00;
+
+    border-radius:15px;
+
+    padding:25px;
+
+    box-shadow:0 0 20px rgba(0,0,0,0.7);
+
+}
+
+.loginBox h1{
+
+    text-align:center;
+
+    color:#ffd27a;
+
+}
+
+.loginBox input{
+
+    width:100%;
+
+    padding:12px;
+
+    box-sizing:border-box;
+
+    border-radius:8px;
+
+    border:1px solid #c58a00;
+
+    background:#5e3c1f;
+
+    color:white;
+
+    margin-top:10px;
+
+}
+
+.loginBox button{
+
+    width:100%;
+
+    padding:12px;
+
+    margin-top:15px;
+
+    border:none;
+
+    border-radius:8px;
+
+    background:#d89b00;
+
+    color:black;
+
+    font-weight:bold;
+
+    cursor:pointer;
+
+}
+
+/* ========================= */
+/* MAIN */
+/* ========================= */
+
+#mainSystem{
+
+    display:none;
+
+}
+
+.mainBox{
+
+    max-width:1200px;
+
+    margin:auto;
+
+}
+
+/* ========================= */
+/* MONEY CONTAINER */
+/* ========================= */
+
+.moneyContainer{
+
+    background:#2d1c0f;
+
+    border:2px solid #5e3c1f;
+
+    border-radius:15px;
+
+    padding:20px;
+
+    margin-bottom:20px;
+
+}
+
+.moneyContainer h2{
+
+    margin-top:0;
+
+    color:#ffd27a;
+
+}
+
+/* ========================= */
+/* MONEY GRID */
+/* ========================= */
+
+.moneyGrid{
+
+    display:grid;
+
+    grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+
+    gap:15px;
+
+}
+
+.moneyCard{
+
+    background:#4a3018;
+
+    border:1px solid #c58a00;
+
+    border-radius:10px;
+
+    padding:15px;
+
+}
+
+.moneyCard h3{
+
+    margin-top:0;
+
+    color:#ffd27a;
+
+}
+
+.moneyInput{
+
+    margin-bottom:10px;
+
+}
+
+.moneyInput label{
+
+    display:block;
+
+    margin-bottom:5px;
+
+}
+
+.moneyInput input{
+
+    width:100%;
+
+    padding:8px;
+
+    box-sizing:border-box;
+
+    border-radius:6px;
+
+    border:1px solid #c58a00;
+
+    background:#6b4724;
+
+    color:white;
+
+}
+
+/* ========================= */
+/* EXCHANGE */
+/* ========================= */
+
+.exchangeBox{
+
+    background:#2d1c0f;
+
+    border:2px solid #5e3c1f;
+
+    border-radius:15px;
+
+    padding:20px;
+
+    margin-bottom:20px;
+
+}
+
+.exchangeBox select,
+.exchangeBox input{
+
+    width:100%;
+
+    padding:10px;
+
+    margin-bottom:10px;
+
+    border-radius:6px;
+
+    border:1px solid #c58a00;
+
+    background:#6b4724;
+
+    color:white;
+
+    box-sizing:border-box;
+
+}
+
+.exchangeBox button{
+
+    width:100%;
+
+    padding:12px;
+
+    border:none;
+
+    border-radius:8px;
+
+    background:#d89b00;
+
+    color:black;
+
+    font-weight:bold;
+
+    cursor:pointer;
+
+}
+
+/* ========================= */
+/* RESULT */
+/* ========================= */
+
+.resultBox{
+
+    margin-top:15px;
+
+    background:#1a1208;
+
+    padding:15px;
+
+    border-radius:10px;
+
+    border:1px solid #c58a00;
+
+}
+
+/* ========================= */
+/* TOTAL */
+/* ========================= */
+
+.totalBox{
+
+    background:#2d1c0f;
+
+    border:2px solid #5e3c1f;
+
+    border-radius:15px;
+
+    padding:20px;
+
+    font-size:22px;
+
+    color:#ffd27a;
+
+    margin-bottom:20px;
+
+}
+
+/* ========================= */
+/* LOG */
+/* ========================= */
+
+.logBox{
+
+    background:#2d1c0f;
+
+    border:2px solid #5e3c1f;
+
+    border-radius:15px;
+
+    padding:20px;
+
+}
+
+.logEntry{
+
+    padding:8px;
+
+    border-bottom:1px solid #5e3c1f;
+
+}
+
+</style>
+</head>
+<body>
+
+<!-- ========================= -->
+<!-- LOGIN -->
+<!-- ========================= -->
+
+<div class="loginBox" id="loginScreen">
+
+    <h1>💰 Money Bag System</h1>
+
+    <input type="text"
+           id="characterID"
+           placeholder="Character ID">
+
+    <button onclick="connectMoneyBag()">
+
+        CONNECT
+
+    </button>
+
+</div>
+
+<!-- ========================= -->
+<!-- MAIN -->
+<!-- ========================= -->
+
+<div id="mainSystem">
+
+<div class="mainBox">
+
+<!-- ========================= -->
+<!-- TOTAL -->
+<!-- ========================= -->
+
+<div class="totalBox">
+
+    💰 มูลค่ารวม:
+    <span id="totalErin">
+
+        0
+
+    </span>
+    Erin
+
+</div>
+
+<!-- ========================= -->
+<!-- MONEY -->
+<!-- ========================= -->
+
+<div class="moneyContainer">
+
+<h2>💰 ระบบเงินทั้งหมด</h2>
+
+<div class="moneyGrid">
+
+<!-- NORTH -->
+
+<div class="moneyCard">
+
+<h3>🏜️ Saahl</h3>
+
+<div class="moneyInput">
+<label>Grain</label>
+<input type="number" id="north_grain" value="0" oninput="saveMoneyData()">
+</div>
+
+<div class="moneyInput">
+<label>Sunmark</label>
+<input type="number" id="north_sun" value="0" oninput="saveMoneyData()">
+</div>
+
+<div class="moneyInput">
+<label>Sand King</label>
+<input type="number" id="north_king" value="0" oninput="saveMoneyData()">
+</div>
+
+</div>
+
+<!-- SOUTH -->
+
+<div class="moneyCard">
+
+<h3>⛰️ Dramyr</h3>
+
+<div class="moneyInput">
+<label>Stone</label>
+<input type="number" id="south_stone" value="0" oninput="saveMoneyData()">
+</div>
+
+<div class="moneyInput">
+<label>Ridge Crest</label>
+<input type="number" id="south_ridge" value="0" oninput="saveMoneyData()">
+</div>
+
+<div class="moneyInput">
+<label>Mountain Core</label>
+<input type="number" id="south_core" value="0" oninput="saveMoneyData()">
+</div>
+
+</div>
+
+<!-- SKY -->
+
+<div class="moneyCard">
+
+<h3>☁️ Aether</h3>
+
+<div class="moneyInput">
+<label>Breeze Chip</label>
+<input type="number" id="sky_breeze" value="0" oninput="saveMoneyData()">
+</div>
+
+<div class="moneyInput">
+<label>Mist Crest</label>
+<input type="number" id="sky_mist" value="0" oninput="saveMoneyData()">
+</div>
+
+<div class="moneyInput">
+<label>Aether Star</label>
+<input type="number" id="sky_star" value="0" oninput="saveMoneyData()">
+</div>
+
+</div>
+
+<!-- CENTRAL -->
+
+<div class="moneyCard">
+
+<h3>🟩 Erin</h3>
+
+<div class="moneyInput">
+<label>Erin</label>
+<input type="number" id="central_erin" value="0" oninput="saveMoneyData()">
+</div>
+
+</div>
+
+<!-- WEST -->
+
+<div class="moneyCard">
+
+<h3>🏝️ Marin</h3>
+
+<div class="moneyInput">
+<label>Shell</label>
+<input type="number" id="west_shell" value="0" oninput="saveMoneyData()">
+</div>
+
+<div class="moneyInput">
+<label>Wave Crest</label>
+<input type="number" id="west_wave" value="0" oninput="saveMoneyData()">
+</div>
+
+<div class="moneyInput">
+<label>Ocean Heart</label>
+<input type="number" id="west_ocean" value="0" oninput="saveMoneyData()">
+</div>
+
+</div>
+
+<!-- EAST -->
+
+<div class="moneyCard">
+
+<h3>🌾 Dent</h3>
+
+<div class="moneyInput">
+<label>Green Dent</label>
+<input type="number" id="east_green" value="0" oninput="saveMoneyData()">
+</div>
+
+<div class="moneyInput">
+<label>Vine Crest</label>
+<input type="number" id="east_vine" value="0" oninput="saveMoneyData()">
+</div>
+
+<div class="moneyInput">
+<label>Guardian Mint</label>
+<input type="number" id="east_guard" value="0" oninput="saveMoneyData()">
+</div>
+
+</div>
+
+</div>
+</div>
+
+<!-- ========================= -->
+<!-- EXCHANGE -->
+<!-- ========================= -->
+
+<div class="exchangeBox">
+
+<h2>💱 แลกเงิน</h2>
+
+<input type="number"
+       id="convertAmount"
+       placeholder="จำนวนเงิน">
+
+<select id="fromCurrency"></select>
+
+<select id="toCurrency"></select>
+
+<button onclick="convertMoney()">
+
+🔄 แลกเงิน
+
+</button>
+
+<div class="resultBox"
+     id="convertResult">
+
+💱 ผลลัพธ์
+
+</div>
+
+</div>
+
+<!-- ========================= -->
+<!-- LOG -->
+<!-- ========================= -->
+
+<div class="logBox">
+
+<h2>📜 ประวัติเงิน</h2>
+
+<div id="moneyLogs"></div>
+
+</div>
+
+</div>
+</div>
+
+<script>
+
+/* ========================= */
+/* DATABASE */
+/* ========================= */
+
+let CHARACTER_ID = null;
+
+/* ========================= */
+/* RATES */
+/* ========================= */
+
+const rates = {
+
+north_grain:0.002,
+north_sun:0.1,
+north_king:1,
+
+south_stone:0.0075,
+south_ridge:0.15,
+south_core:1.5,
+
+sky_breeze:0.003,
+sky_mist:0.3,
+sky_star:3,
+
+central_erin:1,
+
+west_shell:0.008,
+west_wave:0.08,
+west_ocean:0.8,
+
+east_green:0.0048,
+east_vine:0.12,
+east_guard:1.2
+
+};
+
+/* ========================= */
+/* NAMES */
+/* ========================= */
+
+const names = {
+
+north_grain:"Grain",
+north_sun:"Sunmark",
+north_king:"Sand King",
+
+south_stone:"Stone",
+south_ridge:"Ridge Crest",
+south_core:"Mountain Core",
+
+sky_breeze:"Breeze Chip",
+sky_mist:"Mist Crest",
+sky_star:"Aether Star",
+
+central_erin:"Erin",
+
+west_shell:"Shell",
+west_wave:"Wave Crest",
+west_ocean:"Ocean Heart",
+
+east_green:"Green Dent",
+east_vine:"Vine Crest",
+east_guard:"Guardian Mint"
+
+};
+
+/* ========================= */
+/* CREATE SELECTS */
+/* ========================= */
+
+for(let key in names){
+
+document.getElementById("fromCurrency").innerHTML +=
+`<option value="${key}">${names[key]}</option>`;
+
+document.getElementById("toCurrency").innerHTML +=
+`<option value="${key}">${names[key]}</option>`;
+
+}
+
+/* ========================= */
+/* LOGIN */
+/* ========================= */
+
+function connectMoneyBag(){
+
+CHARACTER_ID =
+document.getElementById("characterID").value;
+
+if(!CHARACTER_ID){
+
+alert("ใส่ Character ID");
+
+return;
+
+}
+
+document.getElementById("loginScreen").style.display="none";
+
+document.getElementById("mainSystem").style.display="block";
+
+loadMoneyData();
+
+}
+
+/* ========================= */
+/* SAVE */
+/* ========================= */
+
+function saveMoneyData(){
+
+updateTotal();
+
+console.log("SAVE FIREBASE");
+
+}
+
+/* ========================= */
+/* LOAD */
+/* ========================= */
+
+function loadMoneyData(){
+
+console.log("LOAD FIREBASE");
+
+updateTotal();
+
+}
+
+/* ========================= */
+/* TOTAL */
+/* ========================= */
+
+function updateTotal(){
+
+let total = 0;
+
+for(let key in rates){
+
+let val =
+parseFloat(document.getElementById(key).value) || 0;
+
+total += val * rates[key];
+
+}
+
+document.getElementById("totalErin").innerText =
+total.toFixed(2);
+
+}
+
+/* ========================= */
+/* EXCHANGE */
+/* ========================= */
+
+function convertMoney(){
+
+let amount =
+parseFloat(document.getElementById("convertAmount").value) || 0;
+
+let from =
+document.getElementById("fromCurrency").value;
+
+let to =
+document.getElementById("toCurrency").value;
+
+let erin =
+amount * rates[from];
+
+let result =
+erin / rates[to];
+
+document.getElementById("convertResult").innerHTML =
+
+amount + " " +
+names[from] +
+" = " +
+result.toFixed(2) +
+" " +
+names[to];
+
+addLog(
+"แลก " +
+amount +
+" " +
+names[from] +
+" เป็น " +
+result.toFixed(2) +
+" " +
+names[to]
+);
+
+}
+
+/* ========================= */
+/* LOG */
+/* ========================= */
+
+function addLog(text){
+
+const div =
+document.createElement("div");
+
+div.className = "logEntry";
+
+div.innerText = text;
+
+document.getElementById("moneyLogs")
+.prepend(div);
+
+}
+
+updateTotal();
+
+</script>
+
+</body>
+</html>
