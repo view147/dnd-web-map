@@ -4,279 +4,479 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Money Bag System</title>
+<title>Fantasy Money Bag System</title>
 
 <style>
 
-body{
+/* ========================= */
+/* GLOBAL */
+/* ========================= */
 
+body{
     margin:0;
     padding:20px;
-
     background:#1b1208;
-
     color:white;
-
     font-family:tahoma;
+}
 
+/* ========================= */
+/* SHEET */
+/* ========================= */
+
+.sheet{
+    max-width:1300px;
+    margin:auto;
+    background:#2a1b10;
+    border:2px solid #c58a00;
+    border-radius:16px;
+    padding:20px;
+    box-shadow:0 0 25px rgba(0,0,0,0.7);
+}
+
+/* ========================= */
+/* HEADER */
+/* ========================= */
+
+.header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    border-bottom:2px solid #5e3c1f;
+    padding-bottom:12px;
+    margin-bottom:20px;
+    flex-wrap:wrap;
+    gap:10px;
+}
+
+.header strong{
+    color:#ffd27a;
+    font-size:24px;
+}
+
+/* ========================= */
+/* BUTTON */
+/* ========================= */
+
+button{
+    border:none;
+    border-radius:8px;
+    background:#d89b00;
+    color:black;
+    font-weight:bold;
+    padding:10px 14px;
+    cursor:pointer;
+}
+
+button:hover{
+    background:#ffbf00;
+}
+
+/* ========================= */
+/* INPUT */
+/* ========================= */
+
+input,
+select{
+    background:#5e3c1f;
+    border:1px solid #c58a00;
+    color:white;
+    border-radius:8px;
+    padding:10px;
+    box-sizing:border-box;
+}
+
+/* ========================= */
+/* BAG */
+/* ========================= */
+
+.moneyBag{
+    background:#2d1c0f;
+    border:2px solid #5e3c1f;
+    border-radius:15px;
+    padding:20px;
+    margin-bottom:25px;
+}
+
+.moneyHead{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:15px;
+    flex-wrap:wrap;
+    gap:10px;
+}
+
+.moneyHead span{
+    font-size:22px;
+    color:#ffd27a;
+}
+
+.total{
+    background:#1a1208;
+    border:1px solid #c58a00;
+    padding:8px 14px;
+    border-radius:10px;
+    font-size:22px;
+    color:#ffd27a;
+}
+
+.section{
+    background:#24170d;
+    border:1px solid #5e3c1f;
+    border-radius:12px;
+    padding:15px;
+    margin-bottom:15px;
+}
+
+.moneyGrid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+    gap:18px;
+}
+
+.moneyCard{
+    background:#4a3018;
+    border:1px solid #c58a00;
+    border-radius:12px;
+    padding:15px;
+}
+
+.moneyCard h3{
+    margin-top:0;
+    color:#ffd27a;
+}
+
+.moneyInput{
+    margin-bottom:12px;
+}
+
+.moneyInput label{
+    display:block;
+    margin-bottom:5px;
+    color:#ffd27a;
+}
+
+.moneyInput input{
+    width:100%;
+}
+
+.row{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    align-items:center;
+}
+
+.log{
+    background:#1a1208;
+    border:1px solid #5e3c1f;
+    border-radius:8px;
+    padding:8px;
+    margin-bottom:6px;
+    word-break:break-word;
 }
 
 /* ========================= */
 /* LOGIN */
 /* ========================= */
 
-.loginBox{
-
-    width:400px;
-
+#login{
+    max-width:450px;
     margin:40px auto;
-
-    background:#3d2815;
-
-    border:2px solid #c58a00;
-
-    border-radius:15px;
-
-    padding:25px;
-
-    box-shadow:0 0 20px rgba(0,0,0,0.7);
-
 }
 
-.loginBox h1{
-
-    text-align:center;
-
+#login h2{
     color:#ffd27a;
-
 }
 
-.loginBox input{
-
-    width:100%;
-
-    padding:12px;
-
-    box-sizing:border-box;
-
-    border-radius:8px;
-
-    border:1px solid #c58a00;
-
-    background:#5e3c1f;
-
-    color:white;
-
-    margin-top:10px;
-
-}
-
-.loginBox button{
-
-    width:100%;
-
-    padding:12px;
-
-    margin-top:15px;
-
+hr{
     border:none;
+    border-top:1px solid #5e3c1f;
+    margin:20px 0;
+}
 
-    border-radius:8px;
+</style>
 
-    background:#d89b00;
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
 
-    color:black;
+<script>
 
-    font-weight:bold;
+/* ========================= */
+/* FIREBASE */
+/* ========================= */
 
-    cursor:pointer;
+const firebaseConfig={
+
+    apiKey:"AIzaSyD_ELoo4XEXn9Xoo7zulw7yG78yAsvDoEU",
+    authDomain:"dnd-pale-character-5ec73.firebaseapp.com",
+    projectId:"dnd-pale-character-5ec73"
+
+};
+
+firebase.initializeApp(firebaseConfig);
+
+const db=firebase.firestore();
+
+/* ========================= */
+/* GLOBAL */
+/* ========================= */
+
+let CHARACTER_ID=null;
+
+let STATE={
+    moneyBags:[]
+};
+
+let unsubscribe=null;
+
+/* ========================= */
+/* MONEY */
+/* ========================= */
+
+const rates={
+
+    north_grain:0.002,
+    north_sun:0.1,
+    north_king:1,
+
+    south_stone:0.0075,
+    south_ridge:0.15,
+    south_core:1.5,
+
+    sky_breeze:0.003,
+    sky_mist:0.3,
+    sky_star:3,
+
+    central_erin:1,
+
+    west_shell:0.008,
+    west_wave:0.08,
+    west_ocean:0.8,
+
+    east_green:0.0048,
+    east_vine:0.12,
+    east_guard:1.2
+
+};
+
+const names={
+
+    north_grain:"Grain",
+    north_sun:"Sunmark",
+    north_king:"Sand King",
+
+    south_stone:"Stone",
+    south_ridge:"Ridge Crest",
+    south_core:"Mountain Core",
+
+    sky_breeze:"Breeze Chip",
+    sky_mist:"Mist Crest",
+    sky_star:"Aether Star",
+
+    central_erin:"Erin",
+
+    west_shell:"Shell",
+    west_wave:"Wave Crest",
+    west_ocean:"Ocean Heart",
+
+    east_green:"Green Dent",
+    east_vine:"Vine Crest",
+    east_guard:"Guardian Mint"
+
+};
+
+/* ========================= */
+/* LOGIN */
+/* ========================= */
+
+function login(){
+
+    const id=document.getElementById("login-id").value.trim();
+
+    if(!id){
+        alert("ใส่ Character ID");
+        return;
+    }
+
+    CHARACTER_ID=id;
+
+    localStorage.setItem("CHAR_ID",id);
+
+    document.getElementById("login").style.display="none";
+
+    document.getElementById("app").style.display="block";
+
+    document.getElementById("player-name").innerText=id;
+
+    subscribeCharacter();
+
+}
+
+function logout(){
+
+    if(unsubscribe){
+        unsubscribe();
+    }
+
+    unsubscribe=null;
+
+    CHARACTER_ID=null;
+
+    STATE={
+        moneyBags:[]
+    };
+
+    localStorage.removeItem("CHAR_ID");
+
+    document.getElementById("app").style.display="none";
+
+    document.getElementById("login").style.display="block";
 
 }
 
 /* ========================= */
-/* MAIN */
+/* FIRESTORE */
 /* ========================= */
 
-#mainSystem{
+function subscribeCharacter(){
 
-    display:none;
+    if(unsubscribe){
+        unsubscribe();
+    }
 
-}
+    unsubscribe=db.collection("characters")
+    .doc(CHARACTER_ID)
+    .onSnapshot(
 
-.mainBox{
+        (doc)=>{
 
-    max-width:1200px;
+            if(!doc.exists){
 
-    margin:auto;
+                STATE={
+                    moneyBags:[]
+                };
 
-}
+                save();
 
-/* ========================= */
-/* MONEY CONTAINER */
-/* ========================= */
+            }else{
 
-.moneyContainer{
+                const data=doc.data() || {};
 
-    background:#2d1c0f;
+                STATE={
+                    moneyBags:Array.isArray(data.moneyBags)
+                    ? data.moneyBags
+                    : []
+                };
 
-    border:2px solid #5e3c1f;
+            }
 
-    border-radius:15px;
+            render();
 
-    padding:20px;
+        },
 
-    margin-bottom:20px;
+        (error)=>{
 
-}
+            console.error(error);
 
-.moneyContainer h2{
+            alert("เชื่อม Firebase ไม่สำเร็จ");
 
-    margin-top:0;
+        }
 
-    color:#ffd27a;
-
-}
-
-/* ========================= */
-/* MONEY GRID */
-/* ========================= */
-
-.moneyGrid{
-
-    display:grid;
-
-    grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
-
-    gap:15px;
+    );
 
 }
 
-.moneyCard{
+function save(){
 
-    background:#4a3018;
+    if(!CHARACTER_ID) return;
 
-    border:1px solid #c58a00;
+    db.collection("characters")
+    .doc(CHARACTER_ID)
+    .set(STATE,{merge:true})
+    .catch(err=>{
 
-    border-radius:10px;
+        console.error(err);
 
-    padding:15px;
+        alert("บันทึกข้อมูลไม่สำเร็จ");
 
-}
-
-.moneyCard h3{
-
-    margin-top:0;
-
-    color:#ffd27a;
-
-}
-
-.moneyInput{
-
-    margin-bottom:10px;
-
-}
-
-.moneyInput label{
-
-    display:block;
-
-    margin-bottom:5px;
-
-}
-
-.moneyInput input{
-
-    width:100%;
-
-    padding:8px;
-
-    box-sizing:border-box;
-
-    border-radius:6px;
-
-    border:1px solid #c58a00;
-
-    background:#6b4724;
-
-    color:white;
+    });
 
 }
 
 /* ========================= */
-/* EXCHANGE */
+/* CREATE BAG */
 /* ========================= */
 
-.exchangeBox{
+function createMoneyBag(){
 
-    background:#2d1c0f;
+    const name=
+    document.getElementById("bag-name").value.trim();
 
-    border:2px solid #5e3c1f;
+    if(!name){
 
-    border-radius:15px;
+        alert("ใส่ชื่อถุงเงิน");
 
-    padding:20px;
+        return;
 
-    margin-bottom:20px;
+    }
 
-}
+    STATE.moneyBags.push({
 
-.exchangeBox select,
-.exchangeBox input{
+        name:name,
 
-    width:100%;
+        logs:[],
 
-    padding:10px;
+        money:{
 
-    margin-bottom:10px;
+            north_grain:0,
+            north_sun:0,
+            north_king:0,
 
-    border-radius:6px;
+            south_stone:0,
+            south_ridge:0,
+            south_core:0,
 
-    border:1px solid #c58a00;
+            sky_breeze:0,
+            sky_mist:0,
+            sky_star:0,
 
-    background:#6b4724;
+            central_erin:0,
 
-    color:white;
+            west_shell:0,
+            west_wave:0,
+            west_ocean:0,
 
-    box-sizing:border-box;
+            east_green:0,
+            east_vine:0,
+            east_guard:0
 
-}
+        }
 
-.exchangeBox button{
+    });
 
-    width:100%;
+    document.getElementById("bag-name").value="";
 
-    padding:12px;
-
-    border:none;
-
-    border-radius:8px;
-
-    background:#d89b00;
-
-    color:black;
-
-    font-weight:bold;
-
-    cursor:pointer;
+    save();
 
 }
 
 /* ========================= */
-/* RESULT */
+/* SET MONEY */
 /* ========================= */
 
-.resultBox{
+function setMoney(index,key,val){
 
-    margin-top:15px;
+    val=Number(val);
 
-    background:#1a1208;
+    if(isNaN(val) || val<0){
+        val=0;
+    }
 
-    padding:15px;
+    STATE.moneyBags[index].money[key]=val;
 
-    border-radius:10px;
-
-    border:1px solid #c58a00;
+    save();
 
 }
 
@@ -284,500 +484,374 @@ body{
 /* TOTAL */
 /* ========================= */
 
-.totalBox{
+function totalErin(bag){
 
-    background:#2d1c0f;
+    let total=0;
 
-    border:2px solid #5e3c1f;
+    for(let key in bag.money){
 
-    border-radius:15px;
+        total+=Number(bag.money[key] || 0)
+        * rates[key];
 
-    padding:20px;
+    }
 
-    font-size:22px;
-
-    color:#ffd27a;
-
-    margin-bottom:20px;
+    return total.toFixed(2);
 
 }
 
 /* ========================= */
-/* LOG */
+/* CONVERT */
 /* ========================= */
 
-.logBox{
+function convertMoney(index){
 
-    background:#2d1c0f;
+    const bag=STATE.moneyBags[index];
 
-    border:2px solid #5e3c1f;
+    const amount=
+    Number(document.getElementById("amount"+index).value);
 
-    border-radius:15px;
+    const from=
+    document.getElementById("from"+index).value;
 
-    padding:20px;
+    const to=
+    document.getElementById("to"+index).value;
+
+    if(isNaN(amount) || amount<=0){
+
+        alert("จำนวนไม่ถูกต้อง");
+
+        return;
+
+    }
+
+    if((bag.money[from] || 0)<amount){
+
+        alert("เงินไม่พอ");
+
+        return;
+
+    }
+
+    const erin=amount*rates[from];
+
+    const result=erin/rates[to];
+
+    bag.money[from]-=amount;
+
+    bag.money[to]=
+    Number(bag.money[to] || 0)
+    + Number(result.toFixed(2));
+
+    if(!Array.isArray(bag.logs)){
+        bag.logs=[];
+    }
+
+    bag.logs.unshift(
+
+        "แลก "
+        + amount
+        + " "
+        + names[from]
+        + " → "
+        + result.toFixed(2)
+        + " "
+        + names[to]
+
+    );
+
+    if(bag.logs.length>50){
+        bag.logs.length=50;
+    }
+
+    save();
+
+    render();
 
 }
 
-.logEntry{
+/* ========================= */
+/* DELETE */
+/* ========================= */
 
-    padding:8px;
+function deleteBag(index){
 
-    border-bottom:1px solid #5e3c1f;
+    if(!confirm("ลบถุงเงินนี้ ?")){
+        return;
+    }
+
+    STATE.moneyBags.splice(index,1);
+
+    save();
 
 }
 
-</style>
+/* ========================= */
+/* RENDER */
+/* ========================= */
+
+function render(){
+
+    const box=document.getElementById("bags");
+
+    box.innerHTML="";
+
+    STATE.moneyBags.forEach((bag,index)=>{
+
+        if(!bag.money){
+
+            bag.money={};
+
+        }
+
+        let html=`
+
+        <div class="moneyBag">
+
+            <div class="moneyHead">
+
+                <span>💰 ${bag.name || "ถุงเงิน"}</span>
+
+                <span class="total">
+
+                    ${totalErin(bag)} Erin
+
+                </span>
+
+            </div>
+
+            <div class="section">
+
+                <div class="moneyGrid">
+        `;
+
+        for(let key in names){
+
+            if(typeof bag.money[key] === "undefined"){
+                bag.money[key]=0;
+            }
+
+            html+=`
+
+            <div class="moneyCard">
+
+                <div class="moneyInput">
+
+                    <label>${names[key]}</label>
+
+                    <input type="number"
+
+                    value="${bag.money[key]}"
+
+                    onchange="setMoney(
+                    ${index},
+                    '${key}',
+                    this.value
+                    )">
+
+                </div>
+
+            </div>
+
+            `;
+
+        }
+
+        html+=`
+
+                </div>
+
+            </div>
+
+            <div class="section">
+
+                <h3>💱 แลกเงิน</h3>
+
+                <div class="row">
+
+                    <input
+                    type="number"
+                    id="amount${index}"
+                    placeholder="จำนวน">
+
+                    <select id="from${index}">
+        `;
+
+        for(let key in names){
+
+            html+=`
+
+            <option value="${key}">
+
+                ${names[key]}
+
+            </option>
+
+            `;
+
+        }
+
+        html+=`
+
+                    </select>
+
+                    <select id="to${index}">
+        `;
+
+        for(let key in names){
+
+            html+=`
+
+            <option value="${key}">
+
+                ${names[key]}
+
+            </option>
+
+            `;
+
+        }
+
+        html+=`
+
+                    </select>
+
+                    <button onclick="convertMoney(${index})">
+
+                        แลก
+
+                    </button>
+
+                </div>
+
+            </div>
+
+            <div class="section">
+
+                <h3>📜 ประวัติ</h3>
+        `;
+
+        (bag.logs || []).forEach(log=>{
+
+            html+=`
+
+            <div class="log">
+
+                ${log}
+
+            </div>
+
+            `;
+
+        });
+
+        html+=`
+
+            </div>
+
+            <button onclick="deleteBag(${index})">
+
+                🗑️ ลบถุงเงิน
+
+            </button>
+
+        </div>
+
+        `;
+
+        box.innerHTML+=html;
+
+    });
+
+}
+
+/* ========================= */
+/* AUTO LOGIN */
+/* ========================= */
+
+window.onload=()=>{
+
+    const id=localStorage.getItem("CHAR_ID");
+
+    if(id){
+
+        document.getElementById("login-id").value=id;
+
+        login();
+
+    }
+
+};
+
+</script>
+
 </head>
+
 <body>
 
-<!-- ========================= -->
 <!-- LOGIN -->
-<!-- ========================= -->
 
-<div class="loginBox" id="loginScreen">
+<div id="login" class="sheet">
 
-    <h1>💰 Money Bag System</h1>
+    <h2>💰 Money Bag Login</h2>
 
-    <input type="text"
-           id="characterID"
-           placeholder="Character ID">
+    <input
+    id="login-id"
+    placeholder="Character ID">
 
-    <button onclick="connectMoneyBag()">
+    <button onclick="login()">
 
-        CONNECT
+        เข้าใช้งาน
 
     </button>
 
 </div>
 
-<!-- ========================= -->
-<!-- MAIN -->
-<!-- ========================= -->
+<!-- APP -->
 
-<div id="mainSystem">
+<div id="app" style="display:none">
 
-<div class="mainBox">
+<div class="sheet">
 
-<!-- ========================= -->
-<!-- TOTAL -->
-<!-- ========================= -->
+<div class="header">
 
-<div class="totalBox">
+    <strong>Fantasy Money Bag</strong>
 
-    💰 มูลค่ารวม:
-    <span id="totalErin">
+    <span>
 
-        0
+        ผู้เล่น:
+        <strong id="player-name"></strong>
+
+        <button onclick="logout()">
+
+            ออกจากระบบ
+
+        </button>
 
     </span>
-    Erin
 
 </div>
 
-<!-- ========================= -->
-<!-- MONEY -->
-<!-- ========================= -->
+<div class="row">
 
-<div class="moneyContainer">
+    <input
+    id="bag-name"
+    placeholder="ชื่อถุงเงิน">
 
-<h2>💰 ระบบเงินทั้งหมด</h2>
+    <button onclick="createMoneyBag()">
 
-<div class="moneyGrid">
+        + เพิ่มถุงเงิน
 
-<!-- NORTH -->
-
-<div class="moneyCard">
-
-<h3>🏜️ Saahl</h3>
-
-<div class="moneyInput">
-<label>Grain</label>
-<input type="number" id="north_grain" value="0" oninput="saveMoneyData()">
-</div>
-
-<div class="moneyInput">
-<label>Sunmark</label>
-<input type="number" id="north_sun" value="0" oninput="saveMoneyData()">
-</div>
-
-<div class="moneyInput">
-<label>Sand King</label>
-<input type="number" id="north_king" value="0" oninput="saveMoneyData()">
-</div>
+    </button>
 
 </div>
 
-<!-- SOUTH -->
+<hr>
 
-<div class="moneyCard">
-
-<h3>⛰️ Dramyr</h3>
-
-<div class="moneyInput">
-<label>Stone</label>
-<input type="number" id="south_stone" value="0" oninput="saveMoneyData()">
-</div>
-
-<div class="moneyInput">
-<label>Ridge Crest</label>
-<input type="number" id="south_ridge" value="0" oninput="saveMoneyData()">
-</div>
-
-<div class="moneyInput">
-<label>Mountain Core</label>
-<input type="number" id="south_core" value="0" oninput="saveMoneyData()">
-</div>
-
-</div>
-
-<!-- SKY -->
-
-<div class="moneyCard">
-
-<h3>☁️ Aether</h3>
-
-<div class="moneyInput">
-<label>Breeze Chip</label>
-<input type="number" id="sky_breeze" value="0" oninput="saveMoneyData()">
-</div>
-
-<div class="moneyInput">
-<label>Mist Crest</label>
-<input type="number" id="sky_mist" value="0" oninput="saveMoneyData()">
-</div>
-
-<div class="moneyInput">
-<label>Aether Star</label>
-<input type="number" id="sky_star" value="0" oninput="saveMoneyData()">
-</div>
-
-</div>
-
-<!-- CENTRAL -->
-
-<div class="moneyCard">
-
-<h3>🟩 Erin</h3>
-
-<div class="moneyInput">
-<label>Erin</label>
-<input type="number" id="central_erin" value="0" oninput="saveMoneyData()">
-</div>
-
-</div>
-
-<!-- WEST -->
-
-<div class="moneyCard">
-
-<h3>🏝️ Marin</h3>
-
-<div class="moneyInput">
-<label>Shell</label>
-<input type="number" id="west_shell" value="0" oninput="saveMoneyData()">
-</div>
-
-<div class="moneyInput">
-<label>Wave Crest</label>
-<input type="number" id="west_wave" value="0" oninput="saveMoneyData()">
-</div>
-
-<div class="moneyInput">
-<label>Ocean Heart</label>
-<input type="number" id="west_ocean" value="0" oninput="saveMoneyData()">
-</div>
-
-</div>
-
-<!-- EAST -->
-
-<div class="moneyCard">
-
-<h3>🌾 Dent</h3>
-
-<div class="moneyInput">
-<label>Green Dent</label>
-<input type="number" id="east_green" value="0" oninput="saveMoneyData()">
-</div>
-
-<div class="moneyInput">
-<label>Vine Crest</label>
-<input type="number" id="east_vine" value="0" oninput="saveMoneyData()">
-</div>
-
-<div class="moneyInput">
-<label>Guardian Mint</label>
-<input type="number" id="east_guard" value="0" oninput="saveMoneyData()">
-</div>
+<div id="bags"></div>
 
 </div>
 
 </div>
-</div>
-
-<!-- ========================= -->
-<!-- EXCHANGE -->
-<!-- ========================= -->
-
-<div class="exchangeBox">
-
-<h2>💱 แลกเงิน</h2>
-
-<input type="number"
-       id="convertAmount"
-       placeholder="จำนวนเงิน">
-
-<select id="fromCurrency"></select>
-
-<select id="toCurrency"></select>
-
-<button onclick="convertMoney()">
-
-🔄 แลกเงิน
-
-</button>
-
-<div class="resultBox"
-     id="convertResult">
-
-💱 ผลลัพธ์
-
-</div>
-
-</div>
-
-<!-- ========================= -->
-<!-- LOG -->
-<!-- ========================= -->
-
-<div class="logBox">
-
-<h2>📜 ประวัติเงิน</h2>
-
-<div id="moneyLogs"></div>
-
-</div>
-
-</div>
-</div>
-
-<script>
-
-/* ========================= */
-/* DATABASE */
-/* ========================= */
-
-let CHARACTER_ID = null;
-
-/* ========================= */
-/* RATES */
-/* ========================= */
-
-const rates = {
-
-north_grain:0.002,
-north_sun:0.1,
-north_king:1,
-
-south_stone:0.0075,
-south_ridge:0.15,
-south_core:1.5,
-
-sky_breeze:0.003,
-sky_mist:0.3,
-sky_star:3,
-
-central_erin:1,
-
-west_shell:0.008,
-west_wave:0.08,
-west_ocean:0.8,
-
-east_green:0.0048,
-east_vine:0.12,
-east_guard:1.2
-
-};
-
-/* ========================= */
-/* NAMES */
-/* ========================= */
-
-const names = {
-
-north_grain:"Grain",
-north_sun:"Sunmark",
-north_king:"Sand King",
-
-south_stone:"Stone",
-south_ridge:"Ridge Crest",
-south_core:"Mountain Core",
-
-sky_breeze:"Breeze Chip",
-sky_mist:"Mist Crest",
-sky_star:"Aether Star",
-
-central_erin:"Erin",
-
-west_shell:"Shell",
-west_wave:"Wave Crest",
-west_ocean:"Ocean Heart",
-
-east_green:"Green Dent",
-east_vine:"Vine Crest",
-east_guard:"Guardian Mint"
-
-};
-
-/* ========================= */
-/* CREATE SELECTS */
-/* ========================= */
-
-for(let key in names){
-
-document.getElementById("fromCurrency").innerHTML +=
-`<option value="${key}">${names[key]}</option>`;
-
-document.getElementById("toCurrency").innerHTML +=
-`<option value="${key}">${names[key]}</option>`;
-
-}
-
-/* ========================= */
-/* LOGIN */
-/* ========================= */
-
-function connectMoneyBag(){
-
-CHARACTER_ID =
-document.getElementById("characterID").value;
-
-if(!CHARACTER_ID){
-
-alert("ใส่ Character ID");
-
-return;
-
-}
-
-document.getElementById("loginScreen").style.display="none";
-
-document.getElementById("mainSystem").style.display="block";
-
-loadMoneyData();
-
-}
-
-/* ========================= */
-/* SAVE */
-/* ========================= */
-
-function saveMoneyData(){
-
-updateTotal();
-
-console.log("SAVE FIREBASE");
-
-}
-
-/* ========================= */
-/* LOAD */
-/* ========================= */
-
-function loadMoneyData(){
-
-console.log("LOAD FIREBASE");
-
-updateTotal();
-
-}
-
-/* ========================= */
-/* TOTAL */
-/* ========================= */
-
-function updateTotal(){
-
-let total = 0;
-
-for(let key in rates){
-
-let val =
-parseFloat(document.getElementById(key).value) || 0;
-
-total += val * rates[key];
-
-}
-
-document.getElementById("totalErin").innerText =
-total.toFixed(2);
-
-}
-
-/* ========================= */
-/* EXCHANGE */
-/* ========================= */
-
-function convertMoney(){
-
-let amount =
-parseFloat(document.getElementById("convertAmount").value) || 0;
-
-let from =
-document.getElementById("fromCurrency").value;
-
-let to =
-document.getElementById("toCurrency").value;
-
-let erin =
-amount * rates[from];
-
-let result =
-erin / rates[to];
-
-document.getElementById("convertResult").innerHTML =
-
-amount + " " +
-names[from] +
-" = " +
-result.toFixed(2) +
-" " +
-names[to];
-
-addLog(
-"แลก " +
-amount +
-" " +
-names[from] +
-" เป็น " +
-result.toFixed(2) +
-" " +
-names[to]
-);
-
-}
-
-/* ========================= */
-/* LOG */
-/* ========================= */
-
-function addLog(text){
-
-const div =
-document.createElement("div");
-
-div.className = "logEntry";
-
-div.innerText = text;
-
-document.getElementById("moneyLogs")
-.prepend(div);
-
-}
-
-updateTotal();
-
-</script>
 
 </body>
 </html>
