@@ -507,6 +507,9 @@ function loadDataFromFirestore() {
                 console.error("❌ Firestore listener error:", error);
                 showSaveStatus("❌ เชื่อมต่อฐานข้อมูลล้มเหลว: " + error.message, "error");
                 setInputsDisabled(true);
+                // Always keep char-id enabled
+                const charIdEl = document.getElementById('char-id');
+                if (charIdEl) charIdEl.disabled = false;
             });
     } catch(e) {
         console.error("❌ Error setting up listener:", e);
@@ -546,15 +549,21 @@ function connectCharacter() {
         document.getElementById('connection-box').style.display = 'none';
         document.getElementById('game-dashboard').style.display = 'flex'; 
         
-        // Enable all inputs now that we're connected
+        // Enable all game inputs now that we're connected
         setInputsDisabled(false);
+        
+        // Keep char-id enabled in case they want to reconnect later
+        const charIdEl = document.getElementById('char-id');
+        if (charIdEl) charIdEl.disabled = false;
 
         loadDataFromFirestore();
     } catch (e) {
         document.getElementById('status-message').textContent = `❌ เชื่อมต่อล้มเหลว! Error: ${e.message}`;
         console.error("Connection error:", e);
-        // Make sure inputs stay disabled on error
+        // Make sure game inputs stay disabled on error, but keep char-id enabled
         setInputsDisabled(true);
+        const charIdEl = document.getElementById('char-id');
+        if (charIdEl) charIdEl.disabled = false;
     }
 }
 
@@ -714,6 +723,21 @@ window.addEventListener('DOMContentLoaded', () => {
     // Initial UI visibility setup
     document.getElementById('game-dashboard').style.display = 'none';
     document.getElementById('connection-box').style.display = 'block';
+    
+    // Make sure char-id input and connect button are ALWAYS enabled
+    const charIdInput = document.getElementById('char-id');
+    if (charIdInput) {
+        charIdInput.disabled = false;
+    }
+    
+    // Find and enable the connect button
+    const connectionBox = document.getElementById('connection-box');
+    if (connectionBox) {
+        const connectBtn = connectionBox.querySelector('button');
+        if (connectBtn) {
+            connectBtn.disabled = false;
+        }
+    }
 
     // Bind listeners for HP/Stats/Money/Equipment changes to save data
     document.getElementById('hp').addEventListener('input', () => syncHP(true));
