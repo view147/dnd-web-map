@@ -559,10 +559,10 @@ function connectCharacter() {
 }
 
 function setInputsDisabled(disabled) {
-    // Disable all inputs except connection inputs
+    // Disable only GAME DASHBOARD inputs, NOT the connection box inputs
     const inputSelectors = [
         '#hp', '#maxhp', '#hp_change',
-        '#money', '#char-id',
+        '#money',
         '#stat-str', '#stat-dex', '#stat-con', '#stat-int', '#stat-wis', '#stat-cha', '#stat-mg',
         '#overall_ac', '#overall_md', '#damage_reduction',
         '#slot_head_name', '#slot_head_ability', '#slot_chest_name', '#slot_chest_ability',
@@ -582,7 +582,7 @@ function setInputsDisabled(disabled) {
         if (el) el.disabled = disabled;
     });
     
-    // Also disable all buttons except connection button
+    // Also disable all buttons in game-dashboard (NOT connection buttons)
     const buttons = document.querySelectorAll('#game-dashboard button');
     buttons.forEach(btn => {
         btn.disabled = disabled;
@@ -714,9 +714,6 @@ window.addEventListener('DOMContentLoaded', () => {
     // Initial UI visibility setup
     document.getElementById('game-dashboard').style.display = 'none';
     document.getElementById('connection-box').style.display = 'block';
-    
-    // Disable all inputs initially until connected to Firebase
-    setInputsDisabled(true);
 
     // Bind listeners for HP/Stats/Money/Equipment changes to save data
     document.getElementById('hp').addEventListener('input', () => syncHP(true));
