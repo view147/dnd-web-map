@@ -355,30 +355,84 @@ function getCharacterData() {
 }
 
 function saveDataToFirestore(reason = "manual_save") {
+    // Check if connected to Firebase
+    if (!db) {
+      console.error("❌ Save failed - Firebase not initialized. Reason:", reason);
+      showSaveStatus("❌ ยังไม่เชื่อมต่อ Firebase", "error");
+      return;
+    }
+    
+    if (!CHARACTER_ID) {
+      console.error("❌ Save failed - No character ID. Reason:", reason);
+      showSaveStatus("❌ ไม่มี ID ตัวละคร", "error");
+      return;
+    }
+
     try {
-      if (!db || !CHARACTER_ID) return;
       const data = getCharacterData();
-      db.collection("characters").doc(CHARACTER_ID).set(data, { merge: true });
+      db.collection("characters").doc(CHARACTER_ID).set(data, { merge: true })
+        .then(() => {
+          console.log("✅ Save successful:", reason);
+          showSaveStatus("✅ บันทึกให้สำเร็จ", "success");
+        })
+        .catch((error) => {
+          console.error("❌ Firestore save error:", error, "Reason:", reason);
+          showSaveStatus("❌ บันทึกล้มเหลว: " + error.message, "error");
+        });
     } catch (e) {
-      console.warn("Save failed:", e);
+      console.error("❌ Error preparing save data:", e, "Reason:", reason);
+      showSaveStatus("❌ เตรียมข้อมูลล้มเหลว", "error");
+    }
+}
+
+function showSaveStatus(message, type = "info") {
+    const statusEl = document.getElementById('status-message') || document.getElementById('save-status');
+    if (!statusEl) {
+        // Create status element if it doesn't exist
+        const el = document.createElement('div');
+        el.id = 'save-status';
+        el.style.cssText = 'position: fixed; top: 10px; right: 10px; padding: 10px 15px; border-radius: 5px; z-index: 10000; font-weight: bold;';
+        document.body.appendChild(el);
+        statusEl = el;
+    }
+    
+    statusEl.textContent = message;
+    statusEl.style.color = type === 'error' ? '#ff6666' : (type === 'success' ? '#66ff66' : '#ffd26a');
+    statusEl.style.backgroundColor = type === 'error' ? '#330000' : (type === 'success' ? '#003300' : '#333300');
+    statusEl.style.border = '1px solid ' + (type === 'error' ? '#ff3333' : (type === 'success' ? '#33ff33' : '#ffaa00'));
+    
+    // Hide after 3 seconds for success messages
+    if (type === 'success') {
+        setTimeout(() => {
+            statusEl.textContent = '';
+        }, 3000);
     }
 }
 
 function loadDataFromFirestore() {
+    if (!db) {
+        console.error("❌ Database not initialized");
+        showSaveStatus("❌ ฐานข้อมูลไม่พร้อม", "error");
+        return;
+    }
+    
     if (unsubscribe) unsubscribe();
-    unsubscribe = db.collection("characters").doc(CHARACTER_ID)
-        .onSnapshot((doc) => {
-            if (doc.exists) {
-                const data = doc.data();
-                document.getElementById('hp').value = data.hp ?? 200;
-                document.getElementById('maxhp').value = data.maxhp ?? 200;
-                waterTime = data.waterTime ?? MAX_TIME; // **(ส่วนที่แก้ไขแล้ว)**
-                foodTime = data.foodTime ?? MAX_TIME;   // **(ส่วนที่แก้ไขแล้ว)**
-                isPaused = data.isPaused ?? false;
-                sanity = data.sanity ?? 100;
-                stress = data.stress ?? 0;
-		currentMana = data.mana ?? 100;
-		if (typeof updateManaUI === "function") updateManaUI();
+    
+    try {
+        unsubscribe = db.collection("characters").doc(CHARACTER_ID)
+            .onSnapshot((doc) => {
+                try {
+                    if (doc.exists) {
+                        const data = doc.data();
+                        document.getElementById('hp').value = data.hp ?? 200;
+                        document.getElementById('maxhp').value = data.maxhp ?? 200;
+                        waterTime = data.waterTime ?? MAX_TIME; // **(ส่วนที่แก้ไขแล้ว)**
+                        foodTime = data.foodTime ?? MAX_TIME;   // **(ส่วนที่แก้ไขแล้ว)**
+                        isPaused = data.isPaused ?? false;
+                        sanity = data.sanity ?? 100;
+                        stress = data.stress ?? 0;
+                        currentMana = data.mana ?? 100;
+                        if (typeof updateManaUI === "function") updateManaUI();
 
                 // Load Stats
                 const s = data.stats || {};
@@ -445,7 +499,19 @@ function loadDataFromFirestore() {
                 saveDataToFirestore("initial_create");
                 hasInitialized = true;
             }
-        });
+                    } catch(e) {
+                        console.error("❌ Error loading data:", e);
+                        showSaveStatus("❌ โหลดข้อมูลล้มเหลว: " + e.message, "error");
+                    }
+            }, (error) => {
+                console.error("❌ Firestore listener error:", error);
+                showSaveStatus("❌ เชื่อมต่อฐานข้อมูลล้มเหลว: " + error.message, "error");
+                setInputsDisabled(true);
+            });
+    } catch(e) {
+        console.error("❌ Error setting up listener:", e);
+        showSaveStatus("❌ ตั้งค่า listener ล้มเหลว: " + e.message, "error");
+    }
 }
 
 /* ------------------------
@@ -479,11 +545,48 @@ function connectCharacter() {
         document.getElementById('status-message').textContent = `✅ เชื่อมต่อ Firebase สำเร็จ. ID: ${CHARACTER_ID}`;
         document.getElementById('connection-box').style.display = 'none';
         document.getElementById('game-dashboard').style.display = 'flex'; 
+        
+        // Enable all inputs now that we're connected
+        setInputsDisabled(false);
 
         loadDataFromFirestore();
     } catch (e) {
         document.getElementById('status-message').textContent = `❌ เชื่อมต่อล้มเหลว! Error: ${e.message}`;
+        console.error("Connection error:", e);
+        // Make sure inputs stay disabled on error
+        setInputsDisabled(true);
     }
+}
+
+function setInputsDisabled(disabled) {
+    // Disable all inputs except connection inputs
+    const inputSelectors = [
+        '#hp', '#maxhp', '#hp_change',
+        '#money', '#char-id',
+        '#stat-str', '#stat-dex', '#stat-con', '#stat-int', '#stat-wis', '#stat-cha', '#stat-mg',
+        '#overall_ac', '#overall_md', '#damage_reduction',
+        '#slot_head_name', '#slot_head_ability', '#slot_chest_name', '#slot_chest_ability',
+        '#slot_arms_name', '#slot_arms_ability', '#slot_legs_name', '#slot_legs_ability',
+        '#slot_acc1_name', '#slot_acc1_ability',
+        '#drink-amount', '#eat-amount', '#sanity-adj', '#stress-adj', '#mana_change',
+        '#dice-count-calc', '#pd_face', '#pd_num', '#md_face', '#md_num', '#nd_face', '#nd_num'
+    ];
+    
+    // Add all skill slot inputs
+    for (let i = 1; i <= NUM_SKILL_SLOTS; i++) {
+        inputSelectors.push(`#skill_${i}_name`, `#skill_${i}_desc`, `#skill_${i}_max_usage`, `#skill_${i}_mana_cost`);
+    }
+    
+    inputSelectors.forEach(selector => {
+        const el = document.querySelector(selector);
+        if (el) el.disabled = disabled;
+    });
+    
+    // Also disable all buttons except connection button
+    const buttons = document.querySelectorAll('#game-dashboard button');
+    buttons.forEach(btn => {
+        btn.disabled = disabled;
+    });
 }
 
 function updateBars(shouldSave = true) {
@@ -611,6 +714,9 @@ window.addEventListener('DOMContentLoaded', () => {
     // Initial UI visibility setup
     document.getElementById('game-dashboard').style.display = 'none';
     document.getElementById('connection-box').style.display = 'block';
+    
+    // Disable all inputs initially until connected to Firebase
+    setInputsDisabled(true);
 
     // Bind listeners for HP/Stats/Money/Equipment changes to save data
     document.getElementById('hp').addEventListener('input', () => syncHP(true));
