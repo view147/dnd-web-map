@@ -167,7 +167,7 @@
 </style>
 
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
 
 <script>
 /* ========================
@@ -178,6 +178,7 @@
 const firebaseConfig = {
     apiKey: "AIzaSyD_ELoo4XEXn9Xoo7zulw7yG78yAsvDoEU",
     authDomain: "dnd-pale-character-5ec73.firebaseapp.com",
+    databaseURL: "https://dnd-pale-character-5ec73-default-rtdb.firebaseio.com",
     projectId: "dnd-pale-character-5ec73",
     storageBucket: "dnd-pale-character-5ec73.firebasestorage.app",
     messagingSenderId: "514277998310",
@@ -189,6 +190,7 @@ let db;
 let CHARACTER_ID = "Player1";
 let hasInitialized = false;
 let unsubscribe = null;
+let characterRef = null;
 
 /* LOGIC CONFIG */
 const MAX_TIME = 3 * 60 * 60; // 3 hours in seconds
@@ -294,9 +296,8 @@ function calcStressPenalty() {
 function getCharacterData() {
     const data = {
         id: CHARACTER_ID,
-	mana: currentMana, // แทรกบรรทัดนี้ลงไป
-        lastActive: firebase.firestore.FieldValue.serverTimestamp(),
-        lastActive: firebase.firestore.FieldValue.serverTimestamp(),
+	mana: currentMana,
+        lastActive: new Date().getTime(),
         hp: parseInt(document.getElementById('hp').value) || 0,
         maxhp: parseInt(document.getElementById('maxhp').value) || 200,
         waterTime: waterTime,
@@ -370,18 +371,24 @@ function saveDataToFirestore(reason = "manual_save") {
 
     try {
       const data = getCharacterData();
-      db.collection("characters").doc(CHARACTER_ID).set(data, { merge: true })
-        .then(() => {
+      console.log("Saving data to Realtime Database:", reason, data);
+      
+      // Use Realtime Database ref().set() instead of Firestore
+      db.ref("characters/" + CHARACTER_ID).set(data, (error) => {
+        if (error) {
+          console.error("❌ Realtime Database save error:", error);
+          console.error("Error code:", error.code);
+          console.error("Error message:", error.message);
+          showSaveStatus("❌ บันทึกล้มเหลว: " + error.message, "error");
+        } else {
           console.log("✅ Save successful:", reason);
           showSaveStatus("✅ บันทึกให้สำเร็จ", "success");
-        })
-        .catch((error) => {
-          console.error("❌ Firestore save error:", error, "Reason:", reason);
-          showSaveStatus("❌ บันทึกล้มเหลว: " + error.message, "error");
-        });
+        }
+      });
     } catch (e) {
       console.error("❌ Error preparing save data:", e, "Reason:", reason);
-      showSaveStatus("❌ เตรียมข้อมูลล้มเหลว", "error");
+      console.error("Stack trace:", e.stack);
+      showSaveStatus("❌ เตรียมข้อมูลล้มเหลว: " + e.message, "error");
     }
 }
 
@@ -416,101 +423,115 @@ function loadDataFromFirestore() {
         return;
     }
     
-    if (unsubscribe) unsubscribe();
+    if (characterRef && unsubscribe) {
+        characterRef.off("value", unsubscribe);
+        unsubscribe = null;
+        characterRef = null;
+    }
     
     try {
-        unsubscribe = db.collection("characters").doc(CHARACTER_ID)
-            .onSnapshot((doc) => {
-                try {
-                    if (doc.exists) {
-                        const data = doc.data();
-                        document.getElementById('hp').value = data.hp ?? 200;
-                        document.getElementById('maxhp').value = data.maxhp ?? 200;
-                        waterTime = data.waterTime ?? MAX_TIME; // **(ส่วนที่แก้ไขแล้ว)**
-                        foodTime = data.foodTime ?? MAX_TIME;   // **(ส่วนที่แก้ไขแล้ว)**
-                        isPaused = data.isPaused ?? false;
-                        sanity = data.sanity ?? 100;
-                        stress = data.stress ?? 0;
-                        currentMana = data.mana ?? 100;
-                        if (typeof updateManaUI === "function") updateManaUI();
-
-                // Load Stats
-                const s = data.stats || {};
-                document.getElementById('stat-str').value = s.str ?? 0;
-                document.getElementById('stat-dex').value = s.dex ?? 0;
-                document.getElementById('stat-con').value = s.con ?? 0;
-                document.getElementById('stat-int').value = s.int ?? 0;
-                document.getElementById('stat-wis').value = s.wis ?? 0;
-                document.getElementById('stat-cha').value = s.cha ?? 0;
-                document.getElementById('stat-mg').value = s.mg ?? 0;
-
-                document.getElementById('money').value = data.money ?? 0;
-                
-                // Load Skill Slot Data
-                for (let i = 1; i <= NUM_SKILL_SLOTS; i++) {
-                    const nameEl = document.getElementById(`skill_${i}_name`);
-                    const descEl = document.getElementById(`skill_${i}_desc`);
-                    const maxUsageEl = document.getElementById(`skill_${i}_max_usage`);
-                    const currentUsageEl = document.getElementById(`skill_${i}_current_usage`);
+        characterRef = db.ref("characters/" + CHARACTER_ID);
+        
+        const onValueCallback = (snapshot) => {
+            try {
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    console.log("Loaded data from Realtime Database:", data);
                     
-                    const maxUsage = data[`skill_${i}_max_usage`] ?? 3;
-                    const currentUsage = Math.min(maxUsage, data[`skill_${i}_current_usage`] ?? maxUsage); // currentUsage is a number here
+                    document.getElementById('hp').value = data.hp ?? 200;
+                    document.getElementById('maxhp').value = data.maxhp ?? 200;
+                    waterTime = data.waterTime ?? MAX_TIME;
+                    foodTime = data.foodTime ?? MAX_TIME;
+                    isPaused = data.isPaused ?? false;
+                    sanity = data.sanity ?? 100;
+                    stress = data.stress ?? 0;
+                    currentMana = data.mana ?? 100;
+                    if (typeof updateManaUI === "function") updateManaUI();
 
-                    if(nameEl) nameEl.value = data[`skill_${i}_name`] ?? '';
-                    if(descEl) descEl.value = data[`skill_${i}_desc`] ?? '';
+                    // Load Stats
+                    const s = data.stats || {};
+                    document.getElementById('stat-str').value = s.str ?? 0;
+                    document.getElementById('stat-dex').value = s.dex ?? 0;
+                    document.getElementById('stat-con').value = s.con ?? 0;
+                    document.getElementById('stat-int').value = s.int ?? 0;
+                    document.getElementById('stat-wis').value = s.wis ?? 0;
+                    document.getElementById('stat-cha').value = s.cha ?? 0;
+                    document.getElementById('stat-mg').value = s.mg ?? 0;
+
+                    document.getElementById('money').value = data.money ?? 0;
                     
-                    if(maxUsageEl) maxUsageEl.value = maxUsage;
-                    
-                    // *** NEW: Set the display text to "หมด" if 0, otherwise the number ***
-                    if(currentUsageEl) {
-                        currentUsageEl.textContent = currentUsage === 0 ? "หมด" : currentUsage;
+                    // Load Skill Slot Data
+                    for (let i = 1; i <= NUM_SKILL_SLOTS; i++) {
+                        const nameEl = document.getElementById(`skill_${i}_name`);
+                        const descEl = document.getElementById(`skill_${i}_desc`);
+                        const maxUsageEl = document.getElementById(`skill_${i}_max_usage`);
+                        const currentUsageEl = document.getElementById(`skill_${i}_current_usage`);
+                        
+                        const maxUsage = data[`skill_${i}_max_usage`] ?? 3;
+                        const currentUsage = Math.min(maxUsage, data[`skill_${i}_current_usage`] ?? maxUsage);
+
+                        if(nameEl) nameEl.value = data[`skill_${i}_name`] ?? '';
+                        if(descEl) descEl.value = data[`skill_${i}_desc`] ?? '';
+                        if(maxUsageEl) maxUsageEl.value = maxUsage;
+                        
+                        if(currentUsageEl) {
+                            currentUsageEl.textContent = currentUsage === 0 ? "หมด" : currentUsage;
+                        }
+                        
+                        updateSkillButtonAppearance(i, currentUsage);
                     }
+
+                    // Load Armor/Equipment
+                    document.getElementById('overall_ac').value = data.overall_ac ?? 10;
+                    document.getElementById('overall_md').value = data.overall_md ?? 10;
+                    document.getElementById('damage_reduction').value = data.damage_reduction ?? 0;
+                    document.getElementById('slot_head_name').value = data.slot_head_name ?? '';
+                    document.getElementById('slot_head_ability').value = data.slot_head_ability ?? '';
+                    document.getElementById('slot_chest_name').value = data.slot_chest_name ?? '';
+                    document.getElementById('slot_chest_ability').value = data.slot_chest_ability ?? '';
+                    document.getElementById('slot_arms_name').value = data.slot_arms_name ?? '';
+                    document.getElementById('slot_arms_ability').value = data.slot_arms_ability ?? '';
+                    document.getElementById('slot_legs_name').value = data.slot_legs_name ?? '';
+                    document.getElementById('slot_legs_ability').value = data.slot_legs_ability ?? '';
+                    document.getElementById('slot_acc1_name').value = data.slot_acc1_name ?? '';
+                    document.getElementById('slot_acc1_ability').value = data.slot_acc1_ability ?? '';
+
+                    updateBars(false);
+                    syncHP(false);
+                    togglePause(isPaused, false);
                     
-                    updateSkillButtonAppearance(i, currentUsage);
+                    console.log("✅ Data loaded successfully from Realtime Database");
+                } else if (!hasInitialized) {
+                    // Initialize default status for new characters (3/3 usage)
+                    console.log("Initializing new character data...");
+                    for (let i = 1; i <= NUM_SKILL_SLOTS; i++) {
+                        const maxEl = document.getElementById(`skill_${i}_max_usage`);
+                        const currentEl = document.getElementById(`skill_${i}_current_usage`);
+                        if(maxEl) maxEl.value = 3;
+                        if(currentEl) currentEl.textContent = 3;
+                        updateSkillButtonAppearance(i, 3);
+                    }
+                    saveDataToFirestore("initial_create");
+                    hasInitialized = true;
                 }
-
-                // Load Armor/Equipment
-                document.getElementById('overall_ac').value = data.overall_ac ?? 10;
-                document.getElementById('overall_md').value = data.overall_md ?? 10;
-                document.getElementById('damage_reduction').value = data.damage_reduction ?? 0;
-                document.getElementById('slot_head_name').value = data.slot_head_name ?? '';
-                document.getElementById('slot_head_ability').value = data.slot_head_ability ?? '';
-                document.getElementById('slot_chest_name').value = data.slot_chest_name ?? '';
-                document.getElementById('slot_chest_ability').value = data.slot_chest_ability ?? '';
-                document.getElementById('slot_arms_name').value = data.slot_arms_name ?? '';
-                document.getElementById('slot_arms_ability').value = data.slot_arms_ability ?? '';
-                document.getElementById('slot_legs_name').value = data.slot_legs_name ?? '';
-                document.getElementById('slot_legs_ability').value = data.slot_legs_ability ?? '';
-                document.getElementById('slot_acc1_name').value = data.slot_acc1_name ?? '';
-                document.getElementById('slot_acc1_ability').value = data.slot_acc1_ability ?? '';
-
-                updateBars(false);
-                syncHP(false);
-                togglePause(isPaused, false);
-            } else if (!hasInitialized) {
-                // Initialize default status for new characters (3/3 usage) 
-                for (let i = 1; i <= NUM_SKILL_SLOTS; i++) {
-                    const maxEl = document.getElementById(`skill_${i}_max_usage`);
-                    const currentEl = document.getElementById(`skill_${i}_current_usage`);
-                    if(maxEl) maxEl.value = 3;
-                    if(currentEl) currentEl.textContent = 3;
-                    updateSkillButtonAppearance(i, 3);
-                }
-                saveDataToFirestore("initial_create");
-                hasInitialized = true;
+            } catch(e) {
+                console.error("❌ Error loading data:", e);
+                showSaveStatus("❌ โหลดข้อมูลล้มเหลว: " + e.message, "error");
             }
-                    } catch(e) {
-                        console.error("❌ Error loading data:", e);
-                        showSaveStatus("❌ โหลดข้อมูลล้มเหลว: " + e.message, "error");
-                    }
-            }, (error) => {
-                console.error("❌ Firestore listener error:", error);
-                showSaveStatus("❌ เชื่อมต่อฐานข้อมูลล้มเหลว: " + error.message, "error");
-                setInputsDisabled(true);
-                // Always keep char-id enabled
-                const charIdEl = document.getElementById('char-id');
-                if (charIdEl) charIdEl.disabled = false;
-            });
+        };
+        
+        const onErrorCallback = (error) => {
+            console.error("❌ Realtime Database listener error:", error);
+            showSaveStatus("❌ เชื่อมต่อฐานข้อมูลล้มเหลว: " + error.message, "error");
+            setInputsDisabled(true);
+            // Always keep char-id enabled
+            const charIdEl = document.getElementById('char-id');
+            if (charIdEl) charIdEl.disabled = false;
+        };
+        
+        unsubscribe = onValueCallback;
+        characterRef.on("value", onValueCallback, onErrorCallback);
+        
     } catch(e) {
         console.error("❌ Error setting up listener:", e);
         showSaveStatus("❌ ตั้งค่า listener ล้มเหลว: " + e.message, "error");
@@ -528,22 +549,29 @@ function connectCharacter() {
         return;
     }
     
+    console.log("Connecting with ID:", charIdInput);
+    
     // Stop previous listener and reset state for new connection
-    if (unsubscribe) {
-        unsubscribe(); 
+    if (characterRef && unsubscribe) {
+        characterRef.off("value", unsubscribe); 
         unsubscribe = null;
+        characterRef = null;
     }
     hasInitialized = false; 
 
     CHARACTER_ID = charIdInput;
 
     try {
+        console.log("Firebase apps length:", firebase.apps.length);
+        
         if (!firebase.apps.length) {
+            console.log("Initializing Firebase with config...");
             firebase.initializeApp(firebaseConfig);
-            db = firebase.firestore();
-        } else {
-            db = firebase.firestore();
         }
+        
+        db = firebase.database();
+        console.log("Firebase Realtime Database initialized successfully. db object:", db);
+        console.log("✅ Firebase connection successful");
 
         document.getElementById('status-message').textContent = `✅ เชื่อมต่อ Firebase สำเร็จ. ID: ${CHARACTER_ID}`;
         document.getElementById('connection-box').style.display = 'none';
@@ -558,8 +586,10 @@ function connectCharacter() {
 
         loadDataFromFirestore();
     } catch (e) {
+        console.error("❌ Firebase connection error:", e);
+        console.error("Error code:", e.code);
+        console.error("Error message:", e.message);
         document.getElementById('status-message').textContent = `❌ เชื่อมต่อล้มเหลว! Error: ${e.message}`;
-        console.error("Connection error:", e);
         // Make sure game inputs stay disabled on error, but keep char-id enabled
         setInputsDisabled(true);
         const charIdEl = document.getElementById('char-id');
