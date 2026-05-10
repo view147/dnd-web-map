@@ -166,27 +166,82 @@
   }
 </style>
 
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
-
 <script>
 /* ========================
    FULL SCRIPT (ALL LOGIC)
    ======================== */
 
-/* --- FIREBASE CONFIGURATION --- */
-const firebaseConfig = {
-    apiKey: "AIzaSyD_ELoo4XEXn9Xoo7zulw7yG78yAsvDoEU",
-    authDomain: "dnd-pale-character-5ec73.firebaseapp.com",
-    databaseURL: "https://dnd-pale-character-5ec73-default-rtdb.firebaseio.com",
-    projectId: "dnd-pale-character-5ec73",
-    storageBucket: "dnd-pale-character-5ec73.firebasestorage.app",
-    messagingSenderId: "514277998310",
-    appId: "1:514277998310:web:35ca063d3021cc70b9c527",
-    measurementId: "G-V9NCF292EM"
-};
+/* --- GITHUB STORAGE CONFIGURATION --- */
+const GITHUB_DATA_FOLDER = "player-data/";
+const GITHUB_FILE_EXTENSION = ".json";
+const GITHUB_API_OWNER = "view147";
+const GITHUB_API_REPO = "dnd-web-map";
+// Optional GitHub token for saving files via GitHub API.
+// WARNING: Do not commit a personal access token in a public repository.
+const GITHUB_API_TOKEN = "";
 
-let db;
+function getGithubDataUrl(charId) {
+    return `${GITHUB_DATA_FOLDER}${encodeURIComponent(charId)}${GITHUB_FILE_EXTENSION}`;
+}
+
+function getGithubApiUrl(charId) {
+    return `https://api.github.com/repos/${GITHUB_API_OWNER}/${GITHUB_API_REPO}/contents/${GITHUB_DATA_FOLDER}${encodeURIComponent(charId)}${GITHUB_FILE_EXTENSION}`;
+}
+
+function fetchCharacterDataFromGitHub(charId) {
+    return fetch(getGithubDataUrl(charId), { cache: "no-cache" })
+        .then(response => {
+            if (response.status === 404) return null;
+            if (!response.ok) throw new Error(`GitHub data fetch failed: ${response.status}`);
+            return response.json();
+        });
+}
+
+function base64EncodeUnicode(str) {
+    return btoa(unescape(encodeURIComponent(str)));
+}
+
+function saveCharacterDataToGitHub(charId, data) {
+    if (!GITHUB_API_TOKEN) {
+        return Promise.reject(new Error("GitHub token not configured"));
+    }
+
+    const apiUrl = getGithubApiUrl(charId);
+    const headers = {
+        Authorization: `token ${GITHUB_API_TOKEN}`,
+        "Content-Type": "application/json"
+    };
+
+    return fetch(apiUrl, { headers })
+        .then(response => {
+            if (response.status === 404) return null;
+            if (!response.ok) {
+                return response.json().then(err => {
+                    throw new Error(err.message || `GitHub metadata fetch failed: ${response.status}`);
+                });
+            }
+            return response.json();
+        })
+        .then(metadata => {
+            const postBody = {
+                message: `Save character ${charId}`,
+                content: base64EncodeUnicode(JSON.stringify(data, null, 2))
+            };
+            if (metadata && metadata.sha) {
+                postBody.sha = metadata.sha;
+            }
+            return fetch(apiUrl, {
+                method: "PUT",
+                headers,
+                body: JSON.stringify(postBody)
+            });
+        })
+        .then(response => response.json().then(result => {
+            if (!response.ok) throw new Error(result.message || `GitHub save failed: ${response.status}`);
+            return result;
+        }));
+}
+
 let CHARACTER_ID = "Player1";
 let hasInitialized = false;
 let unsubscribe = null;
@@ -359,45 +414,37 @@ function getCharacterData() {
 }
 
 function saveDataToFirestore(reason = "manual_save") {
-    // Prevent accidental save while loading existing character data
     if (isLoadingCharacter && reason !== 'initial_create' && reason !== 'register') {
       console.log('Skipping save during load:', reason);
-      return;
+      return Promise.resolve(false);
     }
 
-    // Check if connected to Firebase
-    if (!db) {
-      console.error("❌ Save failed - Firebase not initialized. Reason:", reason);
-      showSaveStatus("❌ ยังไม่เชื่อมต่อ Firebase", "error");
-      return;
-    }
-    
     if (!CHARACTER_ID) {
       console.error("❌ Save failed - No character ID. Reason:", reason);
       showSaveStatus("❌ ไม่มี ID ตัวละคร", "error");
-      return;
+      return Promise.resolve(false);
     }
 
     try {
       const data = getCharacterData();
-      console.log("Saving data to Realtime Database:", reason, data);
-      
-      // Use Realtime Database ref().set() instead of Firestore
-      db.ref("characters/" + CHARACTER_ID).set(data, (error) => {
-        if (error) {
-          console.error("❌ Realtime Database save error:", error);
-          console.error("Error code:", error.code);
-          console.error("Error message:", error.message);
-          showSaveStatus("❌ บันทึกล้มเหลว: " + error.message, "error");
-        } else {
+      console.log("Saving data to GitHub:", reason, data);
+
+      return saveCharacterDataToGitHub(CHARACTER_ID, data)
+        .then(() => {
           console.log("✅ Save successful:", reason);
-          showSaveStatus("✅ บันทึกให้สำเร็จ", "success");
-        }
-      });
+          showSaveStatus("✅ บันทึกบน GitHub สำเร็จ", "success");
+          return true;
+        })
+        .catch((error) => {
+          console.error("❌ GitHub save error:", error);
+          showSaveStatus("❌ บันทึก GitHub ล้มเหลว: " + error.message, "error");
+          return false;
+        });
     } catch (e) {
       console.error("❌ Error preparing save data:", e, "Reason:", reason);
       console.error("Stack trace:", e.stack);
       showSaveStatus("❌ เตรียมข้อมูลล้มเหลว: " + e.message, "error");
+      return Promise.resolve(false);
     }
 }
 
@@ -427,131 +474,90 @@ function showSaveStatus(message, type = "info") {
 
 function loadDataFromFirestore() {
     isLoadingCharacter = true;
-    if (!db) {
-        console.error("❌ Database not initialized");
-        showSaveStatus("❌ ฐานข้อมูลไม่พร้อม", "error");
-        isLoadingCharacter = false;
-        return;
-    }
-    
-    if (characterRef && unsubscribe) {
-        characterRef.off("value", unsubscribe);
-        unsubscribe = null;
-        characterRef = null;
-    }
-    
-    try {
-        characterRef = db.ref("characters/" + CHARACTER_ID);
-        
-        const onValueCallback = (snapshot) => {
-            try {
-                if (snapshot.exists()) {
-                    const data = snapshot.val();
-                    console.log("Loaded data from Realtime Database:", data);
-                    
-                    document.getElementById('hp').value = data.hp ?? 200;
-                    document.getElementById('maxhp').value = data.maxhp ?? 200;
-                    waterTime = data.waterTime ?? MAX_TIME;
-                    foodTime = data.foodTime ?? MAX_TIME;
-                    isPaused = data.isPaused ?? false;
-                    sanity = data.sanity ?? 100;
-                    stress = data.stress ?? 0;
-                    currentMana = data.mana ?? 100;
-                    if (typeof updateManaUI === "function") updateManaUI();
 
-                    // Load Stats
-                    const s = data.stats || {};
-                    document.getElementById('stat-str').value = s.str ?? 0;
-                    document.getElementById('stat-dex').value = s.dex ?? 0;
-                    document.getElementById('stat-con').value = s.con ?? 0;
-                    document.getElementById('stat-int').value = s.int ?? 0;
-                    document.getElementById('stat-wis').value = s.wis ?? 0;
-                    document.getElementById('stat-cha').value = s.cha ?? 0;
-                    document.getElementById('stat-mg').value = s.mg ?? 0;
-
-                    document.getElementById('money').value = data.money ?? 0;
-                    
-                    // Load Skill Slot Data
-                    for (let i = 1; i <= NUM_SKILL_SLOTS; i++) {
-                        const nameEl = document.getElementById(`skill_${i}_name`);
-                        const descEl = document.getElementById(`skill_${i}_desc`);
-                        const maxUsageEl = document.getElementById(`skill_${i}_max_usage`);
-                        const currentUsageEl = document.getElementById(`skill_${i}_current_usage`);
-                        
-                        const maxUsage = data[`skill_${i}_max_usage`] ?? 3;
-                        const currentUsage = Math.min(maxUsage, data[`skill_${i}_current_usage`] ?? maxUsage);
-
-                        if(nameEl) nameEl.value = data[`skill_${i}_name`] ?? '';
-                        if(descEl) descEl.value = data[`skill_${i}_desc`] ?? '';
-                        if(maxUsageEl) maxUsageEl.value = maxUsage;
-                        
-                        if(currentUsageEl) {
-                            currentUsageEl.textContent = currentUsage === 0 ? "หมด" : currentUsage;
-                        }
-                        
-                        updateSkillButtonAppearance(i, currentUsage);
-                    }
-
-                    // Load Armor/Equipment
-                    document.getElementById('overall_ac').value = data.overall_ac ?? 10;
-                    document.getElementById('overall_md').value = data.overall_md ?? 10;
-                    document.getElementById('damage_reduction').value = data.damage_reduction ?? 0;
-                    document.getElementById('slot_head_name').value = data.slot_head_name ?? '';
-                    document.getElementById('slot_head_ability').value = data.slot_head_ability ?? '';
-                    document.getElementById('slot_chest_name').value = data.slot_chest_name ?? '';
-                    document.getElementById('slot_chest_ability').value = data.slot_chest_ability ?? '';
-                    document.getElementById('slot_arms_name').value = data.slot_arms_name ?? '';
-                    document.getElementById('slot_arms_ability').value = data.slot_arms_ability ?? '';
-                    document.getElementById('slot_legs_name').value = data.slot_legs_name ?? '';
-                    document.getElementById('slot_legs_ability').value = data.slot_legs_ability ?? '';
-                    document.getElementById('slot_acc1_name').value = data.slot_acc1_name ?? '';
-                    document.getElementById('slot_acc1_ability').value = data.slot_acc1_ability ?? '';
-
-                    updateBars(false);
-                    syncHP(false);
-                    togglePause(isPaused, false);
-                    
-                    document.getElementById('connection-box').style.display = 'none';
-                    document.getElementById('game-dashboard').style.display = 'flex';
-                    document.getElementById('status-message').textContent = `✅ โหลดข้อมูลเรียบร้อย ID: ${CHARACTER_ID}`;
-                    console.log("✅ Data loaded successfully from Realtime Database");
-                    isLoadingCharacter = false;
-                    isLoggingIn = false;
-                } else {
-                    document.getElementById('status-message').textContent = `❌ ไม่พบ ID "${CHARACTER_ID}" กรุณาสมัครก่อน.`;
-                    console.warn("Character ID not found:", CHARACTER_ID);
-                    setInputsDisabled(true);
-                    isLoadingCharacter = false;
-                    isLoggingIn = false;
-                    document.getElementById('game-dashboard').style.display = 'none';
-                    document.getElementById('connection-box').style.display = 'block';
-                    return;
-                }
-            } catch(e) {
-                console.error("❌ Error loading data:", e);
-                showSaveStatus("❌ โหลดข้อมูลล้มเหลว: " + e.message, "error");
-            }
-        };
-        
-        const onErrorCallback = (error) => {
-            console.error("❌ Realtime Database listener error:", error);
-            showSaveStatus("❌ เชื่อมต่อฐานข้อมูลล้มเหลว: " + error.message, "error");
+    fetchCharacterDataFromGitHub(CHARACTER_ID)
+      .then((data) => {
+        if (!data) {
+            document.getElementById('status-message').textContent = `❌ ไม่พบ ID "${CHARACTER_ID}" กรุณาสมัครก่อน.`;
+            console.warn("Character ID not found:", CHARACTER_ID);
             setInputsDisabled(true);
             isLoadingCharacter = false;
             isLoggingIn = false;
-            const charIdEl = document.getElementById('char-id');
-            if (charIdEl) charIdEl.disabled = false;
-        };
-        
-        unsubscribe = onValueCallback;
-        characterRef.on("value", onValueCallback, onErrorCallback);
-        
-    } catch(e) {
-        console.error("❌ Error setting up listener:", e);
-        showSaveStatus("❌ ตั้งค่า listener ล้มเหลว: " + e.message, "error");
+            document.getElementById('game-dashboard').style.display = 'none';
+            document.getElementById('connection-box').style.display = 'block';
+            return;
+        }
+
+        console.log("Loaded data from GitHub:", data);
+        document.getElementById('hp').value = data.hp ?? 200;
+        document.getElementById('maxhp').value = data.maxhp ?? 200;
+        waterTime = data.waterTime ?? MAX_TIME;
+        foodTime = data.foodTime ?? MAX_TIME;
+        isPaused = data.isPaused ?? false;
+        sanity = data.sanity ?? 100;
+        stress = data.stress ?? 0;
+        currentMana = data.mana ?? 100;
+        if (typeof updateManaUI === "function") updateManaUI();
+
+        const s = data.stats || {};
+        document.getElementById('stat-str').value = s.str ?? 0;
+        document.getElementById('stat-dex').value = s.dex ?? 0;
+        document.getElementById('stat-con').value = s.con ?? 0;
+        document.getElementById('stat-int').value = s.int ?? 0;
+        document.getElementById('stat-wis').value = s.wis ?? 0;
+        document.getElementById('stat-cha').value = s.cha ?? 0;
+        document.getElementById('stat-mg').value = s.mg ?? 0;
+
+        document.getElementById('money').value = data.money ?? 0;
+
+        for (let i = 1; i <= NUM_SKILL_SLOTS; i++) {
+            const nameEl = document.getElementById(`skill_${i}_name`);
+            const descEl = document.getElementById(`skill_${i}_desc`);
+            const maxUsageEl = document.getElementById(`skill_${i}_max_usage`);
+            const currentUsageEl = document.getElementById(`skill_${i}_current_usage`);
+
+            const maxUsage = data[`skill_${i}_max_usage`] ?? 3;
+            const currentUsage = Math.min(maxUsage, data[`skill_${i}_current_usage`] ?? maxUsage);
+
+            if (nameEl) nameEl.value = data[`skill_${i}_name`] ?? '';
+            if (descEl) descEl.value = data[`skill_${i}_desc`] ?? '';
+            if (maxUsageEl) maxUsageEl.value = maxUsage;
+            if (currentUsageEl) currentUsageEl.textContent = currentUsage === 0 ? "หมด" : currentUsage;
+            updateSkillButtonAppearance(i, currentUsage);
+        }
+
+        document.getElementById('overall_ac').value = data.overall_ac ?? 10;
+        document.getElementById('overall_md').value = data.overall_md ?? 10;
+        document.getElementById('damage_reduction').value = data.damage_reduction ?? 0;
+        document.getElementById('slot_head_name').value = data.slot_head_name ?? '';
+        document.getElementById('slot_head_ability').value = data.slot_head_ability ?? '';
+        document.getElementById('slot_chest_name').value = data.slot_chest_name ?? '';
+        document.getElementById('slot_chest_ability').value = data.slot_chest_ability ?? '';
+        document.getElementById('slot_arms_name').value = data.slot_arms_name ?? '';
+        document.getElementById('slot_arms_ability').value = data.slot_arms_ability ?? '';
+        document.getElementById('slot_legs_name').value = data.slot_legs_name ?? '';
+        document.getElementById('slot_legs_ability').value = data.slot_legs_ability ?? '';
+        document.getElementById('slot_acc1_name').value = data.slot_acc1_name ?? '';
+        document.getElementById('slot_acc1_ability').value = data.slot_acc1_ability ?? '';
+
+        updateBars(false);
+        syncHP(false);
+        togglePause(isPaused, false);
+
+        document.getElementById('connection-box').style.display = 'none';
+        document.getElementById('game-dashboard').style.display = 'flex';
+        document.getElementById('status-message').textContent = `✅ โหลดข้อมูลเรียบร้อย ID: ${CHARACTER_ID}`;
+        console.log("✅ Data loaded successfully from GitHub");
         isLoadingCharacter = false;
         isLoggingIn = false;
-    }
+      })
+      .catch((error) => {
+        console.error("❌ Error loading data:", error);
+        showSaveStatus("❌ โหลดข้อมูลล้มเหลว: " + error.message, "error");
+        setInputsDisabled(true);
+        isLoadingCharacter = false;
+        isLoggingIn = false;
+      });
 }
 
 function setStatusMessage(message, type = 'info') {
@@ -606,26 +612,9 @@ function initializeNewCharacter() {
     togglePause(false, false);
 }
 
-function ensureFirebaseReady() {
-    if (!firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
-    }
-    if (!db) {
-        db = firebase.database();
-    }
-}
-
 function checkCharacterExists(charId) {
-    return new Promise((resolve, reject) => {
-        try {
-            ensureFirebaseReady();
-            db.ref(`characters/${charId}`).once('value', snapshot => {
-                resolve(snapshot.exists());
-            }, reject);
-        } catch (e) {
-            reject(e);
-        }
-    });
+    return fetchCharacterDataFromGitHub(charId)
+        .then(data => data !== null);
 }
 
 function registerCharacter() {
@@ -653,13 +642,20 @@ function registerCharacter() {
 
             connectCharacter(charIdInput);
             initializeNewCharacter();
-            saveDataToFirestore('register');
+            return saveDataToFirestore('register');
+        })
+        .then((saved) => {
+            if (!isRegistering) return;
+            if (!saved) {
+                throw new Error('ไม่สามารถบันทึกข้อมูลลง GitHub ได้');
+            }
             document.getElementById('connection-box').style.display = 'none';
             document.getElementById('game-dashboard').style.display = 'flex';
             setStatusMessage(`✅ สมัคร ID สำเร็จ: ${charIdInput}`, 'success');
             isRegistering = false;
         })
         .catch(error => {
+            if (error && error.message === 'No character ID') return;
             isRegistering = false;
             console.error('Register failed:', error);
             setStatusMessage(`❌ สมัคร ID ล้มเหลว: ${error.message}`, 'error');
@@ -708,26 +704,16 @@ function connectCharacter(charIdInput) {
         return;
     }
 
-    try {
-        ensureFirebaseReady();
-
-        if (characterRef && unsubscribe) {
-            characterRef.off('value', unsubscribe);
-            unsubscribe = null;
-            characterRef = null;
-        }
-        hasInitialized = false;
-        CHARACTER_ID = charIdInput;
-        setInputsDisabled(false);
-        const charIdEl = document.getElementById('char-id');
-        if (charIdEl) charIdEl.disabled = false;
-
-        console.log('Connected to Firebase for ID:', CHARACTER_ID);
-    } catch (e) {
-        console.error('Firebase connection error:', e);
-        setStatusMessage(`❌ เชื่อมต่อล้มเหลว! ${e.message}`, 'error');
-        setInputsDisabled(true);
+    if (characterRef && unsubscribe) {
+        characterRef = null;
+        unsubscribe = null;
     }
+    hasInitialized = false;
+    CHARACTER_ID = charIdInput;
+    setInputsDisabled(false);
+    const charIdEl = document.getElementById('char-id');
+    if (charIdEl) charIdEl.disabled = false;
+    console.log('Connected to GitHub character ID:', CHARACTER_ID);
 }
 
 function setInputsDisabled(disabled) {
@@ -856,7 +842,7 @@ function adjustStress(dir) {
 
 /* Heartbeat: decrease timers */
 setInterval(() => {
-    if (!isPaused && CHARACTER_ID && db) {
+    if (!isPaused && CHARACTER_ID) {
         let shouldSave = false;
         if (waterTime > 0) { waterTime--; shouldSave = true; }
         if (foodTime > 0) { foodTime--; shouldSave = true; }
@@ -1486,36 +1472,9 @@ const CONDITION_RULES = {
     "Unconscious": "หมดสติ, Incapacitated, ตกอยู่ในสภาพ Prone, ไม่รับรู้รอบข้าง, ล้มเหลว Str/Dex Save อัตโนมัติ, ศัตรูโจมตีใกล้ตัวเป็น Critical"
 };
 
-// ฟังก์ชันดึงข้อมูลจาก Firebase มาแสดงผลหน้าจอผู้เล่น
-const originalConnect = connectCharacter;
-connectCharacter = function() {
-    originalConnect(); // เรียกใช้งานโค้ดเดิมของคุณ
-    
-    // เริ่มติดตามสถานะจาก Firebase (เฉพาะเมื่อใช้ Firestore)
-    setTimeout(() => {
-        if (!db || !CHARACTER_ID || typeof db.collection !== 'function') return;
-        db.collection("characters").doc(CHARACTER_ID).onSnapshot((doc) => {
-            if (doc.exists) {
-                const data = doc.data();
-                const activeConds = data.conditions || [];
-                const overlay = document.getElementById('condition-overlay');
-                const listEl = document.getElementById('player-cond-list');
+// Legacy Firestore condition overlay is disabled because character data is now loaded from GitHub files.
+// If you need real-time condition updates from a backend later, implement a dedicated API listener here.
 
-                if (activeConds.length > 0) {
-                    overlay.style.display = 'block';
-                    listEl.innerHTML = activeConds.map(c => `
-                        <div style="background:#2b1e12; padding:10px; border-left:4px solid #ff4444; border-radius:4px;">
-                            <strong style="color:#ff6666; font-size:1rem;">${c}</strong><br>
-                            <span style="font-size:0.8rem; color:#f8e7c0;">${CONDITION_RULES[c] || ""}</span>
-                        </div>
-                    `).join('');
-                } else {
-                    overlay.style.display = 'none';
-                }
-            }
-        });
-    }, 2000);
-};
 // 1. ฟังก์ชันอัปเดตหน้าจอและคำนวณจาก MG
 function updateManaUI() {
     const mg = parseInt(document.getElementById('stat-mg').value) || 0;
