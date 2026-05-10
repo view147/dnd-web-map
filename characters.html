@@ -416,7 +416,7 @@ function showSaveStatus(message, type = "info") {
     }
 }
 
-function loadDataFromFirestore(createIfMissing = false) {
+function loadDataFromFirestore() {
     if (!db) {
         console.error("❌ Database not initialized");
         showSaveStatus("❌ ฐานข้อมูลไม่พร้อม", "error");
@@ -505,18 +505,12 @@ function loadDataFromFirestore(createIfMissing = false) {
                     document.getElementById('status-message').textContent = `✅ โหลดข้อมูลเรียบร้อย ID: ${CHARACTER_ID}`;
                     console.log("✅ Data loaded successfully from Realtime Database");
                 } else {
-                    if (!createIfMissing) {
-                        document.getElementById('status-message').textContent = `❌ ไม่พบ ID "${CHARACTER_ID}" กรุณาสมัครก่อน.`;
-                        console.warn("Character ID not found:", CHARACTER_ID);
-                        setInputsDisabled(true);
-                        document.getElementById('game-dashboard').style.display = 'none';
-                        document.getElementById('connection-box').style.display = 'block';
-                        return;
-                    }
-
-                    console.log("Registering new character data for ID:", CHARACTER_ID);
-                    initializeNewCharacter();
-                    saveDataToFirestore("initial_create");
+                    document.getElementById('status-message').textContent = `❌ ไม่พบ ID "${CHARACTER_ID}" กรุณาสมัครก่อน.`;
+                    console.warn("Character ID not found:", CHARACTER_ID);
+                    setInputsDisabled(true);
+                    document.getElementById('game-dashboard').style.display = 'none';
+                    document.getElementById('connection-box').style.display = 'block';
+                    return;
                 }
             } catch(e) {
                 console.error("❌ Error loading data:", e);
@@ -539,6 +533,13 @@ function loadDataFromFirestore(createIfMissing = false) {
         console.error("❌ Error setting up listener:", e);
         showSaveStatus("❌ ตั้งค่า listener ล้มเหลว: " + e.message, "error");
     }
+}
+
+function setStatusMessage(message, type = 'info') {
+    const statusEl = document.getElementById('status-message');
+    if (!statusEl) return;
+    statusEl.textContent = message;
+    statusEl.style.color = type === 'error' ? '#ff6666' : (type === 'success' ? '#66ff66' : '#ffd26a');
 }
 
 function initializeNewCharacter() {
@@ -586,9 +587,27 @@ function initializeNewCharacter() {
     togglePause(false, false);
 }
 
-/* ------------------------
-   UI / GAME LOGIC (CONT.)
-   ------------------------ */
+function ensureFirebaseReady() {
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
+    if (!db) {
+        db = firebase.database();
+    }
+}
+
+function checkCharacterExists(charId) {
+    return new Promise((resolve, reject) => {
+        try {
+            ensureFirebaseReady();
+            db.ref(`characters/${charId}`).once('value', snapshot => {
+                resolve(snapshot.exists());
+            }, reject);
+        } catch (e) {
+            reject(e);
+        }
+    });
+}
 
 function registerCharacter() {
     const charIdEl = document.getElementById('char-id');
@@ -601,7 +620,26 @@ function registerCharacter() {
         document.getElementById('status-message').textContent = "❌ กรุณาใส่ ID ตัวละคร!";
         return;
     }
-    connectCharacter(charIdInput, true);
+
+    setStatusMessage(`⏳ กำลังตรวจสอบ ID: ${charIdInput} ...`, 'info');
+    checkCharacterExists(charIdInput)
+        .then(exists => {
+            if (exists) {
+                setStatusMessage(`❌ ID "${charIdInput}" มีอยู่แล้ว โปรดใช้ ID ใหม่หรือกดล็อกอิน`, 'error');
+                return;
+            }
+
+            connectCharacter(charIdInput);
+            initializeNewCharacter();
+            saveDataToFirestore('register');
+            document.getElementById('connection-box').style.display = 'none';
+            document.getElementById('game-dashboard').style.display = 'flex';
+            setStatusMessage(`✅ สมัคร ID สำเร็จ: ${charIdInput}`, 'success');
+        })
+        .catch(error => {
+            console.error('Register failed:', error);
+            setStatusMessage(`❌ สมัคร ID ล้มเหลว: ${error.message}`, 'error');
+        });
 }
 
 function loginCharacter() {
@@ -615,51 +653,49 @@ function loginCharacter() {
         document.getElementById('status-message').textContent = "❌ กรุณาใส่ ID ตัวละคร!";
         return;
     }
-    connectCharacter(charIdInput, false);
+
+    setStatusMessage(`⏳ กำลังตรวจสอบ ID: ${charIdInput} ...`, 'info');
+    checkCharacterExists(charIdInput)
+        .then(exists => {
+            if (!exists) {
+                setStatusMessage(`❌ ไม่พบ ID "${charIdInput}" โปรดสมัครก่อน`, 'error');
+                return;
+            }
+
+            connectCharacter(charIdInput);
+            loadDataFromFirestore();
+        })
+        .catch(error => {
+            console.error('Login failed:', error);
+            setStatusMessage(`❌ ล็อกอินล้มเหลว: ${error.message}`, 'error');
+        });
 }
 
-function connectCharacter(charIdInput, isRegister = false) {
+function connectCharacter(charIdInput) {
     if (!charIdInput) {
-        document.getElementById('status-message').textContent = "❌ กรุณาใส่ ID ตัวละคร!";
+        setStatusMessage("❌ กรุณาใส่ ID ตัวละคร!", 'error');
         return;
     }
 
-    console.log(isRegister ? "Registering with ID:" : "Logging in with ID:", charIdInput);
-    
-    // Stop previous listener and reset state for new connection
-    if (characterRef && unsubscribe) {
-        characterRef.off("value", unsubscribe);
-        unsubscribe = null;
-        characterRef = null;
-    }
-    hasInitialized = false;
-    CHARACTER_ID = charIdInput;
-
     try {
-        console.log("Firebase apps length:", firebase.apps.length);
-        if (!firebase.apps.length) {
-            console.log("Initializing Firebase with config...");
-            firebase.initializeApp(firebaseConfig);
+        ensureFirebaseReady();
+
+        if (characterRef && unsubscribe) {
+            characterRef.off('value', unsubscribe);
+            unsubscribe = null;
+            characterRef = null;
         }
-
-        db = firebase.database();
-        console.log("Firebase Realtime Database initialized successfully. db object:", db);
-
-        document.getElementById('status-message').textContent = isRegister
-            ? `✅ สมัคร ID สำเร็จ: ${CHARACTER_ID} (กำลังสร้างข้อมูลใหม่...)`
-            : `✅ การล็อกอินอยู่ระหว่างดำเนินการ: ${CHARACTER_ID}`;
-
+        hasInitialized = false;
+        CHARACTER_ID = charIdInput;
         setInputsDisabled(false);
         const charIdEl = document.getElementById('char-id');
         if (charIdEl) charIdEl.disabled = false;
 
-        loadDataFromFirestore(isRegister);
+        console.log('Connected to Firebase for ID:', CHARACTER_ID);
     } catch (e) {
-        console.error("❌ Firebase connection error:", e);
-        document.getElementById('status-message').textContent = `❌ เชื่อมต่อล้มเหลว! Error: ${e.message}`;
+        console.error('Firebase connection error:', e);
+        setStatusMessage(`❌ เชื่อมต่อล้มเหลว! ${e.message}`, 'error');
         setInputsDisabled(true);
-        const charIdEl = document.getElementById('char-id');
-        if (charIdEl) charIdEl.disabled = false;
     }
 }
 
@@ -886,8 +922,8 @@ window.addEventListener('DOMContentLoaded', () => {
         <div class="flex" style="width: 100%; align-items: center; gap: 10px;">
             <label for="char-id" style="min-width: 150px;">ID ตัวละคร:</label>
             <input type="text" id="char-id" value="Player1" style="flex-grow: 1;">
-            <button id="login-btn">ล็อกอิน ID</button>
-            <button id="register-btn">สมัคร ID</button>
+            <button id="login-btn" onclick="loginCharacter()">ล็อกอิน ID</button>
+            <button id="register-btn" onclick="registerCharacter()">สมัคร ID</button>
         </div>
         <p id="status-message" style="color:#d1a056; margin-top:10px;">สถานะ: กรอก ID แล้วกด สมัคร ID หรือ ล็อกอิน ID</p>
     </div>
