@@ -591,7 +591,12 @@ function initializeNewCharacter() {
    ------------------------ */
 
 function registerCharacter() {
-    const charIdInput = document.getElementById('char-id').value.trim();
+    const charIdEl = document.getElementById('char-id');
+    if (!charIdEl) {
+        console.error('char-id input not found');
+        return;
+    }
+    const charIdInput = charIdEl.value.trim();
     if (!charIdInput) {
         document.getElementById('status-message').textContent = "❌ กรุณาใส่ ID ตัวละคร!";
         return;
@@ -600,7 +605,12 @@ function registerCharacter() {
 }
 
 function loginCharacter() {
-    const charIdInput = document.getElementById('char-id').value.trim();
+    const charIdEl = document.getElementById('char-id');
+    if (!charIdEl) {
+        console.error('char-id input not found');
+        return;
+    }
+    const charIdInput = charIdEl.value.trim();
     if (!charIdInput) {
         document.getElementById('status-message').textContent = "❌ กรุณาใส่ ID ตัวละคร!";
         return;
@@ -810,19 +820,21 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('game-dashboard').style.display = 'none';
     document.getElementById('connection-box').style.display = 'block';
     
-    // Make sure char-id input and connect button are ALWAYS enabled
+    // Make sure char-id input is ALWAYS enabled
     const charIdInput = document.getElementById('char-id');
     if (charIdInput) {
         charIdInput.disabled = false;
     }
-    
-    // Find and enable the connect button
-    const connectionBox = document.getElementById('connection-box');
-    if (connectionBox) {
-        const connectBtn = connectionBox.querySelector('button');
-        if (connectBtn) {
-            connectBtn.disabled = false;
-        }
+
+    const loginBtn = document.getElementById('login-btn');
+    const registerBtn = document.getElementById('register-btn');
+    if (loginBtn) {
+        loginBtn.disabled = false;
+        loginBtn.addEventListener('click', loginCharacter);
+    }
+    if (registerBtn) {
+        registerBtn.disabled = false;
+        registerBtn.addEventListener('click', registerCharacter);
     }
 
     // Bind listeners for HP/Stats/Money/Equipment changes to save data
@@ -874,8 +886,8 @@ window.addEventListener('DOMContentLoaded', () => {
         <div class="flex" style="width: 100%; align-items: center; gap: 10px;">
             <label for="char-id" style="min-width: 150px;">ID ตัวละคร:</label>
             <input type="text" id="char-id" value="Player1" style="flex-grow: 1;">
-            <button onclick="loginCharacter()">ล็อกอิน ID</button>
-            <button onclick="registerCharacter()">สมัคร ID</button>
+            <button id="login-btn">ล็อกอิน ID</button>
+            <button id="register-btn">สมัคร ID</button>
         </div>
         <p id="status-message" style="color:#d1a056; margin-top:10px;">สถานะ: กรอก ID แล้วกด สมัคร ID หรือ ล็อกอิน ID</p>
     </div>
