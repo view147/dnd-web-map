@@ -171,75 +171,51 @@
    FULL SCRIPT (ALL LOGIC)
    ======================== */
 
-/* --- GITHUB STORAGE CONFIGURATION --- */
+/* --- BACKEND API CONFIGURATION --- */
+const BACKEND_API_URL = localStorage.getItem('backendApiUrl') || 'http://localhost:3000';
 const GITHUB_DATA_FOLDER = "player-data/";
 const GITHUB_FILE_EXTENSION = ".json";
-const GITHUB_API_OWNER = "view147";
-const GITHUB_API_REPO = "dnd-web-map";
-// Optional GitHub token for saving files via GitHub API.
-// WARNING: Do not commit a personal access token in a public repository.
-const GITHUB_API_TOKEN = "";
 
 function getGithubDataUrl(charId) {
     return `${GITHUB_DATA_FOLDER}${encodeURIComponent(charId)}${GITHUB_FILE_EXTENSION}`;
-}
-
-function getGithubApiUrl(charId) {
-    return `https://api.github.com/repos/${GITHUB_API_OWNER}/${GITHUB_API_REPO}/contents/${GITHUB_DATA_FOLDER}${encodeURIComponent(charId)}${GITHUB_FILE_EXTENSION}`;
 }
 
 function fetchCharacterDataFromGitHub(charId) {
     return fetch(getGithubDataUrl(charId), { cache: "no-cache" })
         .then(response => {
             if (response.status === 404) return null;
-            if (!response.ok) throw new Error(`GitHub data fetch failed: ${response.status}`);
+            if (!response.ok) throw new Error(`Data fetch failed: ${response.status}`);
             return response.json();
         });
 }
 
-function base64EncodeUnicode(str) {
-    return btoa(unescape(encodeURIComponent(str)));
+function saveCharacterDataToBackend(charId, data) {
+    return fetch(`${BACKEND_API_URL}/api/save-character`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: charId, data: data })
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => {
+                throw new Error(err.error || `Save failed: ${response.status}`);
+            });
+        }
+        return response.json();
+    });
 }
 
-function saveCharacterDataToGitHub(charId, data) {
-    if (!GITHUB_API_TOKEN) {
-        return Promise.reject(new Error("GitHub token not configured"));
-    }
-
-    const apiUrl = getGithubApiUrl(charId);
-    const headers = {
-        Authorization: `token ${GITHUB_API_TOKEN}`,
-        "Content-Type": "application/json"
-    };
-
-    return fetch(apiUrl, { headers })
-        .then(response => {
-            if (response.status === 404) return null;
-            if (!response.ok) {
-                return response.json().then(err => {
-                    throw new Error(err.message || `GitHub metadata fetch failed: ${response.status}`);
-                });
-            }
-            return response.json();
-        })
-        .then(metadata => {
-            const postBody = {
-                message: `Save character ${charId}`,
-                content: base64EncodeUnicode(JSON.stringify(data, null, 2))
-            };
-            if (metadata && metadata.sha) {
-                postBody.sha = metadata.sha;
-            }
-            return fetch(apiUrl, {
-                method: "PUT",
-                headers,
-                body: JSON.stringify(postBody)
-            });
-        })
-        .then(response => response.json().then(result => {
-            if (!response.ok) throw new Error(result.message || `GitHub save failed: ${response.status}`);
-            return result;
-        }));
+function checkCharacterExistsViaBackend(charId) {
+    return fetch(`${BACKEND_API_URL}/api/check-character`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: charId })
+    })
+    .then(response => {
+        if (!response.ok) throw new Error(`Check failed: ${response.status}`);
+        return response.json();
+    })
+    .then(result => result.exists);
 }
 
 let CHARACTER_ID = "Player1";
@@ -429,15 +405,15 @@ function saveDataToFirestore(reason = "manual_save") {
       const data = getCharacterData();
       console.log("Saving data to GitHub:", reason, data);
 
-      return saveCharacterDataToGitHub(CHARACTER_ID, data)
+      return saveCharacterDataToBackend(CHARACTER_ID, data)
         .then(() => {
           console.log("✅ Save successful:", reason);
           showSaveStatus("✅ บันทึกบน GitHub สำเร็จ", "success");
           return true;
         })
         .catch((error) => {
-          console.error("❌ GitHub save error:", error);
-          showSaveStatus("❌ บันทึก GitHub ล้มเหลว: " + error.message, "error");
+          console.error("❌ Backend save error:", error);
+          showSaveStatus("❌ บันทึกล้มเหลว: " + error.message, "error");
           return false;
         });
     } catch (e) {
@@ -613,8 +589,12 @@ function initializeNewCharacter() {
 }
 
 function checkCharacterExists(charId) {
-    return fetchCharacterDataFromGitHub(charId)
-        .then(data => data !== null);
+    // Try backend API first, fallback to local file fetch
+    return checkCharacterExistsViaBackend(charId)
+        .catch(() => {
+            // If backend unavailable, fall back to checking local files
+            return fetchCharacterDataFromGitHub(charId).then(data => data !== null);
+        });
 }
 
 function registerCharacter() {
