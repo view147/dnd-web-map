@@ -191,6 +191,9 @@ let CHARACTER_ID = "Player1";
 let hasInitialized = false;
 let unsubscribe = null;
 let characterRef = null;
+let isLoadingCharacter = false;
+let isRegistering = false;
+let isLoggingIn = false;
 
 /* LOGIC CONFIG */
 const MAX_TIME = 3 * 60 * 60; // 3 hours in seconds
@@ -356,6 +359,12 @@ function getCharacterData() {
 }
 
 function saveDataToFirestore(reason = "manual_save") {
+    // Prevent accidental save while loading existing character data
+    if (isLoadingCharacter && reason !== 'initial_create' && reason !== 'register') {
+      console.log('Skipping save during load:', reason);
+      return;
+    }
+
     // Check if connected to Firebase
     if (!db) {
       console.error("❌ Save failed - Firebase not initialized. Reason:", reason);
@@ -417,9 +426,11 @@ function showSaveStatus(message, type = "info") {
 }
 
 function loadDataFromFirestore() {
+    isLoadingCharacter = true;
     if (!db) {
         console.error("❌ Database not initialized");
         showSaveStatus("❌ ฐานข้อมูลไม่พร้อม", "error");
+        isLoadingCharacter = false;
         return;
     }
     
@@ -504,10 +515,14 @@ function loadDataFromFirestore() {
                     document.getElementById('game-dashboard').style.display = 'flex';
                     document.getElementById('status-message').textContent = `✅ โหลดข้อมูลเรียบร้อย ID: ${CHARACTER_ID}`;
                     console.log("✅ Data loaded successfully from Realtime Database");
+                    isLoadingCharacter = false;
+                    isLoggingIn = false;
                 } else {
                     document.getElementById('status-message').textContent = `❌ ไม่พบ ID "${CHARACTER_ID}" กรุณาสมัครก่อน.`;
                     console.warn("Character ID not found:", CHARACTER_ID);
                     setInputsDisabled(true);
+                    isLoadingCharacter = false;
+                    isLoggingIn = false;
                     document.getElementById('game-dashboard').style.display = 'none';
                     document.getElementById('connection-box').style.display = 'block';
                     return;
@@ -522,6 +537,8 @@ function loadDataFromFirestore() {
             console.error("❌ Realtime Database listener error:", error);
             showSaveStatus("❌ เชื่อมต่อฐานข้อมูลล้มเหลว: " + error.message, "error");
             setInputsDisabled(true);
+            isLoadingCharacter = false;
+            isLoggingIn = false;
             const charIdEl = document.getElementById('char-id');
             if (charIdEl) charIdEl.disabled = false;
         };
@@ -532,6 +549,8 @@ function loadDataFromFirestore() {
     } catch(e) {
         console.error("❌ Error setting up listener:", e);
         showSaveStatus("❌ ตั้งค่า listener ล้มเหลว: " + e.message, "error");
+        isLoadingCharacter = false;
+        isLoggingIn = false;
     }
 }
 
@@ -621,10 +640,13 @@ function registerCharacter() {
         return;
     }
 
+    isRegistering = true;
+    isLoggingIn = false;
     setStatusMessage(`⏳ กำลังตรวจสอบ ID: ${charIdInput} ...`, 'info');
     checkCharacterExists(charIdInput)
         .then(exists => {
             if (exists) {
+                isRegistering = false;
                 setStatusMessage(`❌ ID "${charIdInput}" มีอยู่แล้ว โปรดใช้ ID ใหม่หรือกดล็อกอิน`, 'error');
                 return;
             }
@@ -635,8 +657,10 @@ function registerCharacter() {
             document.getElementById('connection-box').style.display = 'none';
             document.getElementById('game-dashboard').style.display = 'flex';
             setStatusMessage(`✅ สมัคร ID สำเร็จ: ${charIdInput}`, 'success');
+            isRegistering = false;
         })
         .catch(error => {
+            isRegistering = false;
             console.error('Register failed:', error);
             setStatusMessage(`❌ สมัคร ID ล้มเหลว: ${error.message}`, 'error');
         });
@@ -654,10 +678,15 @@ function loginCharacter() {
         return;
     }
 
+    isLoggingIn = true;
+    isRegistering = false;
+    isLoadingCharacter = true;
     setStatusMessage(`⏳ กำลังตรวจสอบ ID: ${charIdInput} ...`, 'info');
     checkCharacterExists(charIdInput)
         .then(exists => {
             if (!exists) {
+                isLoggingIn = false;
+                isLoadingCharacter = false;
                 setStatusMessage(`❌ ไม่พบ ID "${charIdInput}" โปรดสมัครก่อน`, 'error');
                 return;
             }
@@ -666,6 +695,8 @@ function loginCharacter() {
             loadDataFromFirestore();
         })
         .catch(error => {
+            isLoggingIn = false;
+            isLoadingCharacter = false;
             console.error('Login failed:', error);
             setStatusMessage(`❌ ล็อกอินล้มเหลว: ${error.message}`, 'error');
         });
@@ -1460,9 +1491,9 @@ const originalConnect = connectCharacter;
 connectCharacter = function() {
     originalConnect(); // เรียกใช้งานโค้ดเดิมของคุณ
     
-    // เริ่มติดตามสถานะจาก Firebase
+    // เริ่มติดตามสถานะจาก Firebase (เฉพาะเมื่อใช้ Firestore)
     setTimeout(() => {
-        if (!db || !CHARACTER_ID) return;
+        if (!db || !CHARACTER_ID || typeof db.collection !== 'function') return;
         db.collection("characters").doc(CHARACTER_ID).onSnapshot((doc) => {
             if (doc.exists) {
                 const data = doc.data();
