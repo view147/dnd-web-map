@@ -416,7 +416,7 @@ function showSaveStatus(message, type = "info") {
     }
 }
 
-function loadDataFromFirestore() {
+function loadDataFromFirestore(createIfMissing = false) {
     if (!db) {
         console.error("❌ Database not initialized");
         showSaveStatus("❌ ฐานข้อมูลไม่พร้อม", "error");
@@ -500,19 +500,23 @@ function loadDataFromFirestore() {
                     syncHP(false);
                     togglePause(isPaused, false);
                     
+                    document.getElementById('connection-box').style.display = 'none';
+                    document.getElementById('game-dashboard').style.display = 'flex';
+                    document.getElementById('status-message').textContent = `✅ โหลดข้อมูลเรียบร้อย ID: ${CHARACTER_ID}`;
                     console.log("✅ Data loaded successfully from Realtime Database");
-                } else if (!hasInitialized) {
-                    // Initialize default status for new characters (3/3 usage)
-                    console.log("Initializing new character data...");
-                    for (let i = 1; i <= NUM_SKILL_SLOTS; i++) {
-                        const maxEl = document.getElementById(`skill_${i}_max_usage`);
-                        const currentEl = document.getElementById(`skill_${i}_current_usage`);
-                        if(maxEl) maxEl.value = 3;
-                        if(currentEl) currentEl.textContent = 3;
-                        updateSkillButtonAppearance(i, 3);
+                } else {
+                    if (!createIfMissing) {
+                        document.getElementById('status-message').textContent = `❌ ไม่พบ ID "${CHARACTER_ID}" กรุณาสมัครก่อน.`;
+                        console.warn("Character ID not found:", CHARACTER_ID);
+                        setInputsDisabled(true);
+                        document.getElementById('game-dashboard').style.display = 'none';
+                        document.getElementById('connection-box').style.display = 'block';
+                        return;
                     }
+
+                    console.log("Registering new character data for ID:", CHARACTER_ID);
+                    initializeNewCharacter();
                     saveDataToFirestore("initial_create");
-                    hasInitialized = true;
                 }
             } catch(e) {
                 console.error("❌ Error loading data:", e);
@@ -524,7 +528,6 @@ function loadDataFromFirestore() {
             console.error("❌ Realtime Database listener error:", error);
             showSaveStatus("❌ เชื่อมต่อฐานข้อมูลล้มเหลว: " + error.message, "error");
             setInputsDisabled(true);
-            // Always keep char-id enabled
             const charIdEl = document.getElementById('char-id');
             if (charIdEl) charIdEl.disabled = false;
         };
@@ -538,59 +541,112 @@ function loadDataFromFirestore() {
     }
 }
 
+function initializeNewCharacter() {
+    waterTime = MAX_TIME;
+    foodTime = MAX_TIME;
+    sanity = 100;
+    stress = 0;
+    isPaused = false;
+    currentMana = 100;
+
+    document.getElementById('hp').value = 200;
+    document.getElementById('maxhp').value = 200;
+    document.getElementById('money').value = 0;
+    document.getElementById('stat-str').value = 0;
+    document.getElementById('stat-dex').value = 0;
+    document.getElementById('stat-con').value = 0;
+    document.getElementById('stat-int').value = 0;
+    document.getElementById('stat-wis').value = 0;
+    document.getElementById('stat-cha').value = 0;
+    document.getElementById('stat-mg').value = 0;
+    document.getElementById('overall_ac').value = 10;
+    document.getElementById('overall_md').value = 10;
+    document.getElementById('damage_reduction').value = 0;
+    document.getElementById('slot_head_name').value = '';
+    document.getElementById('slot_head_ability').value = '';
+    document.getElementById('slot_chest_name').value = '';
+    document.getElementById('slot_chest_ability').value = '';
+    document.getElementById('slot_arms_name').value = '';
+    document.getElementById('slot_arms_ability').value = '';
+    document.getElementById('slot_legs_name').value = '';
+    document.getElementById('slot_legs_ability').value = '';
+    document.getElementById('slot_acc1_name').value = '';
+    document.getElementById('slot_acc1_ability').value = '';
+
+    for (let i = 1; i <= NUM_SKILL_SLOTS; i++) {
+        const maxEl = document.getElementById(`skill_${i}_max_usage`);
+        const currentEl = document.getElementById(`skill_${i}_current_usage`);
+        if (maxEl) maxEl.value = 3;
+        if (currentEl) currentEl.textContent = 3;
+        updateSkillButtonAppearance(i, 3);
+    }
+
+    updateBars(false);
+    syncHP(false);
+    togglePause(false, false);
+}
+
 /* ------------------------
    UI / GAME LOGIC (CONT.)
    ------------------------ */
 
-function connectCharacter() {
+function registerCharacter() {
     const charIdInput = document.getElementById('char-id').value.trim();
     if (!charIdInput) {
         document.getElementById('status-message').textContent = "❌ กรุณาใส่ ID ตัวละคร!";
         return;
     }
-    
-    console.log("Connecting with ID:", charIdInput);
+    connectCharacter(charIdInput, true);
+}
+
+function loginCharacter() {
+    const charIdInput = document.getElementById('char-id').value.trim();
+    if (!charIdInput) {
+        document.getElementById('status-message').textContent = "❌ กรุณาใส่ ID ตัวละคร!";
+        return;
+    }
+    connectCharacter(charIdInput, false);
+}
+
+function connectCharacter(charIdInput, isRegister = false) {
+    if (!charIdInput) {
+        document.getElementById('status-message').textContent = "❌ กรุณาใส่ ID ตัวละคร!";
+        return;
+    }
+
+    console.log(isRegister ? "Registering with ID:" : "Logging in with ID:", charIdInput);
     
     // Stop previous listener and reset state for new connection
     if (characterRef && unsubscribe) {
-        characterRef.off("value", unsubscribe); 
+        characterRef.off("value", unsubscribe);
         unsubscribe = null;
         characterRef = null;
     }
-    hasInitialized = false; 
-
+    hasInitialized = false;
     CHARACTER_ID = charIdInput;
 
     try {
         console.log("Firebase apps length:", firebase.apps.length);
-        
         if (!firebase.apps.length) {
             console.log("Initializing Firebase with config...");
             firebase.initializeApp(firebaseConfig);
         }
-        
+
         db = firebase.database();
         console.log("Firebase Realtime Database initialized successfully. db object:", db);
-        console.log("✅ Firebase connection successful");
 
-        document.getElementById('status-message').textContent = `✅ เชื่อมต่อ Firebase สำเร็จ. ID: ${CHARACTER_ID}`;
-        document.getElementById('connection-box').style.display = 'none';
-        document.getElementById('game-dashboard').style.display = 'flex'; 
-        
-        // Enable all game inputs now that we're connected
+        document.getElementById('status-message').textContent = isRegister
+            ? `✅ สมัคร ID สำเร็จ: ${CHARACTER_ID} (กำลังสร้างข้อมูลใหม่...)`
+            : `✅ การล็อกอินอยู่ระหว่างดำเนินการ: ${CHARACTER_ID}`;
+
         setInputsDisabled(false);
-        
-        // Keep char-id enabled in case they want to reconnect later
         const charIdEl = document.getElementById('char-id');
         if (charIdEl) charIdEl.disabled = false;
 
-        loadDataFromFirestore();
+        loadDataFromFirestore(isRegister);
     } catch (e) {
         console.error("❌ Firebase connection error:", e);
-        console.error("Error code:", e.code);
-        console.error("Error message:", e.message);
         document.getElementById('status-message').textContent = `❌ เชื่อมต่อล้มเหลว! Error: ${e.message}`;
-        // Make sure game inputs stay disabled on error, but keep char-id enabled
         setInputsDisabled(true);
         const charIdEl = document.getElementById('char-id');
         if (charIdEl) charIdEl.disabled = false;
@@ -815,12 +871,13 @@ window.addEventListener('DOMContentLoaded', () => {
 <div class="main-container">
     <div class="box" id="connection-box">
         <h2>🔗 การเชื่อมต่อฐานข้อมูล</h2>
-        <div class="flex" style="width: 100%; align-items: center;">
+        <div class="flex" style="width: 100%; align-items: center; gap: 10px;">
             <label for="char-id" style="min-width: 150px;">ID ตัวละคร:</label>
             <input type="text" id="char-id" value="Player1" style="flex-grow: 1;">
-            <button onclick="connectCharacter()">เชื่อมต่อ/เริ่มเกม</button>
+            <button onclick="loginCharacter()">ล็อกอิน ID</button>
+            <button onclick="registerCharacter()">สมัคร ID</button>
         </div>
-        <p id="status-message" style="color:#d1a056; margin-top:10px;">สถานะ: กรุณาใส่ ID และกด "เชื่อมต่อ/เริ่มเกม"</p>
+        <p id="status-message" style="color:#d1a056; margin-top:10px;">สถานะ: กรอก ID แล้วกด สมัคร ID หรือ ล็อกอิน ID</p>
     </div>
 
     <div id="game-dashboard" class="flex-container" style="display:none;">
