@@ -172,10 +172,10 @@
    ======================== */
 
 /* --- BACKEND API CONFIGURATION --- */
-const defaultBackendUrl = window.location.origin && window.location.origin !== 'null'
-    ? window.location.origin
-    : 'http://localhost:3000';
+const defaultBackendUrl = 'http://localhost:3000';
 const BACKEND_API_URL = localStorage.getItem('backendApiUrl') || defaultBackendUrl;
+
+console.log('Using backend API URL:', BACKEND_API_URL);
 
 let CHARACTER_ID = "Player1";
 let hasInitialized = false;
