@@ -173,58 +173,9 @@
 
 /* --- BACKEND API CONFIGURATION --- */
 const BACKEND_API_URL = localStorage.getItem('backendApiUrl') || 'http://localhost:3000';
-const GITHUB_DATA_FOLDER = "player-data/";
-const GITHUB_FILE_EXTENSION = ".json";
-
-function getGithubDataUrl(charId) {
-    return `${GITHUB_DATA_FOLDER}${encodeURIComponent(charId)}${GITHUB_FILE_EXTENSION}`;
-}
-
-function fetchCharacterDataFromGitHub(charId) {
-    return fetch(getGithubDataUrl(charId), { cache: "no-cache" })
-        .then(response => {
-            if (response.status === 404) return null;
-            if (!response.ok) throw new Error(`Data fetch failed: ${response.status}`);
-            return response.json();
-        });
-}
-
-function saveCharacterDataToBackend(charId, data) {
-    return fetch(`${BACKEND_API_URL}/api/save-character`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: charId, data: data })
-    })
-    .then(response => {
-        if (!response.ok) {
-            return response.json().then(err => {
-                throw new Error(err.error || `Save failed: ${response.status}`);
-            });
-        }
-        return response.json();
-    });
-}
-
-function checkCharacterExistsViaBackend(charId) {
-    return fetch(`${BACKEND_API_URL}/api/check-character`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: charId })
-    })
-    .then(response => {
-        if (!response.ok) throw new Error(`Check failed: ${response.status}`);
-        return response.json();
-    })
-    .then(result => result.exists);
-}
 
 let CHARACTER_ID = "Player1";
 let hasInitialized = false;
-let unsubscribe = null;
-let characterRef = null;
-let isLoadingCharacter = false;
-let isRegistering = false;
-let isLoggingIn = false;
 
 /* LOGIC CONFIG */
 const MAX_TIME = 3 * 60 * 60; // 3 hours in seconds
@@ -390,37 +341,46 @@ function getCharacterData() {
 }
 
 function saveDataToFirestore(reason = "manual_save") {
-    if (isLoadingCharacter && reason !== 'initial_create' && reason !== 'register') {
-      console.log('Skipping save during load:', reason);
-      return Promise.resolve(false);
-    }
-
+    // Check if connected to backend
     if (!CHARACTER_ID) {
       console.error("❌ Save failed - No character ID. Reason:", reason);
       showSaveStatus("❌ ไม่มี ID ตัวละคร", "error");
-      return Promise.resolve(false);
+      return;
     }
 
     try {
       const data = getCharacterData();
       console.log("Saving data to GitHub:", reason, data);
 
-      return saveCharacterDataToBackend(CHARACTER_ID, data)
-        .then(() => {
-          console.log("✅ Save successful:", reason);
-          showSaveStatus("✅ บันทึกบน GitHub สำเร็จ", "success");
-          return true;
+      // Save to GitHub via backend API
+      fetch(`${BACKEND_API_URL}/api/save-character`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          id: CHARACTER_ID,
+          data: data
         })
-        .catch((error) => {
-          console.error("❌ Backend save error:", error);
-          showSaveStatus("❌ บันทึกล้มเหลว: " + error.message, "error");
-          return false;
-        });
+      })
+      .then(response => response.json())
+      .then(result => {
+        if (result.success) {
+          console.log("✅ Save successful:", reason);
+          showSaveStatus("✅ บันทึกให้สำเร็จ", "success");
+        } else {
+          console.error("❌ Save failed:", result.error);
+          showSaveStatus("❌ บันทึกล้มเหลว: " + result.error, "error");
+        }
+      })
+      .catch(error => {
+        console.error("❌ Save error:", error);
+        showSaveStatus("❌ บันทึกล้มเหลว: " + error.message, "error");
+      });
     } catch (e) {
       console.error("❌ Error preparing save data:", e, "Reason:", reason);
       console.error("Stack trace:", e.stack);
       showSaveStatus("❌ เตรียมข้อมูลล้มเหลว: " + e.message, "error");
-      return Promise.resolve(false);
     }
 }
 
@@ -449,22 +409,36 @@ function showSaveStatus(message, type = "info") {
 }
 
 function loadDataFromFirestore() {
-    isLoadingCharacter = true;
+    console.log("Loading data from GitHub for character:", CHARACTER_ID);
 
-    fetchCharacterDataFromGitHub(CHARACTER_ID)
-      .then((data) => {
-        if (!data) {
-            document.getElementById('status-message').textContent = `❌ ไม่พบ ID "${CHARACTER_ID}" กรุณาสมัครก่อน.`;
-            console.warn("Character ID not found:", CHARACTER_ID);
-            setInputsDisabled(true);
-            isLoadingCharacter = false;
-            isLoggingIn = false;
-            document.getElementById('game-dashboard').style.display = 'none';
-            document.getElementById('connection-box').style.display = 'block';
+    fetch(`${BACKEND_API_URL}/api/get-character/${encodeURIComponent(CHARACTER_ID)}`)
+    .then(response => {
+        if (response.status === 404) {
+            // Character doesn't exist, initialize new one
+            if (!hasInitialized) {
+                console.log("Initializing new character data...");
+                for (let i = 1; i <= NUM_SKILL_SLOTS; i++) {
+                    const maxEl = document.getElementById(`skill_${i}_max_usage`);
+                    const currentEl = document.getElementById(`skill_${i}_current_usage`);
+                    if(maxEl) maxEl.value = 3;
+                    if(currentEl) currentEl.textContent = 3;
+                    updateSkillButtonAppearance(i, 3);
+                }
+                saveDataToFirestore("initial_create");
+                hasInitialized = true;
+            }
             return;
         }
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (!data) return; // New character case handled above
 
         console.log("Loaded data from GitHub:", data);
+
         document.getElementById('hp').value = data.hp ?? 200;
         document.getElementById('maxhp').value = data.maxhp ?? 200;
         waterTime = data.waterTime ?? MAX_TIME;
@@ -475,6 +449,7 @@ function loadDataFromFirestore() {
         currentMana = data.mana ?? 100;
         if (typeof updateManaUI === "function") updateManaUI();
 
+        // Load Stats
         const s = data.stats || {};
         document.getElementById('stat-str').value = s.str ?? 0;
         document.getElementById('stat-dex').value = s.dex ?? 0;
@@ -486,6 +461,7 @@ function loadDataFromFirestore() {
 
         document.getElementById('money').value = data.money ?? 0;
 
+        // Load Skill Slot Data
         for (let i = 1; i <= NUM_SKILL_SLOTS; i++) {
             const nameEl = document.getElementById(`skill_${i}_name`);
             const descEl = document.getElementById(`skill_${i}_desc`);
@@ -495,13 +471,18 @@ function loadDataFromFirestore() {
             const maxUsage = data[`skill_${i}_max_usage`] ?? 3;
             const currentUsage = Math.min(maxUsage, data[`skill_${i}_current_usage`] ?? maxUsage);
 
-            if (nameEl) nameEl.value = data[`skill_${i}_name`] ?? '';
-            if (descEl) descEl.value = data[`skill_${i}_desc`] ?? '';
-            if (maxUsageEl) maxUsageEl.value = maxUsage;
-            if (currentUsageEl) currentUsageEl.textContent = currentUsage === 0 ? "หมด" : currentUsage;
+            if(nameEl) nameEl.value = data[`skill_${i}_name`] ?? '';
+            if(descEl) descEl.value = data[`skill_${i}_desc`] ?? '';
+            if(maxUsageEl) maxUsageEl.value = maxUsage;
+
+            if(currentUsageEl) {
+                currentUsageEl.textContent = currentUsage === 0 ? "หมด" : currentUsage;
+            }
+
             updateSkillButtonAppearance(i, currentUsage);
         }
 
+        // Load Armor/Equipment
         document.getElementById('overall_ac').value = data.overall_ac ?? 10;
         document.getElementById('overall_md').value = data.overall_md ?? 10;
         document.getElementById('damage_reduction').value = data.damage_reduction ?? 0;
@@ -520,180 +501,68 @@ function loadDataFromFirestore() {
         syncHP(false);
         togglePause(isPaused, false);
 
-        document.getElementById('connection-box').style.display = 'none';
-        document.getElementById('game-dashboard').style.display = 'flex';
-        document.getElementById('status-message').textContent = `✅ โหลดข้อมูลเรียบร้อย ID: ${CHARACTER_ID}`;
         console.log("✅ Data loaded successfully from GitHub");
-        isLoadingCharacter = false;
-        isLoggingIn = false;
-      })
-      .catch((error) => {
+    })
+    .catch(error => {
         console.error("❌ Error loading data:", error);
         showSaveStatus("❌ โหลดข้อมูลล้มเหลว: " + error.message, "error");
         setInputsDisabled(true);
-        isLoadingCharacter = false;
-        isLoggingIn = false;
-      });
+        // Always keep char-id enabled
+        const charIdEl = document.getElementById('char-id');
+        if (charIdEl) charIdEl.disabled = false;
+    });
 }
 
-function setStatusMessage(message, type = 'info') {
-    const statusEl = document.getElementById('status-message');
-    if (!statusEl) return;
-    statusEl.textContent = message;
-    statusEl.style.color = type === 'error' ? '#ff6666' : (type === 'success' ? '#66ff66' : '#ffd26a');
-}
+/* ------------------------
+   UI / GAME LOGIC (CONT.)
+   ------------------------ */
 
-function initializeNewCharacter() {
-    waterTime = MAX_TIME;
-    foodTime = MAX_TIME;
-    sanity = 100;
-    stress = 0;
-    isPaused = false;
-    currentMana = 100;
-
-    document.getElementById('hp').value = 200;
-    document.getElementById('maxhp').value = 200;
-    document.getElementById('money').value = 0;
-    document.getElementById('stat-str').value = 0;
-    document.getElementById('stat-dex').value = 0;
-    document.getElementById('stat-con').value = 0;
-    document.getElementById('stat-int').value = 0;
-    document.getElementById('stat-wis').value = 0;
-    document.getElementById('stat-cha').value = 0;
-    document.getElementById('stat-mg').value = 0;
-    document.getElementById('overall_ac').value = 10;
-    document.getElementById('overall_md').value = 10;
-    document.getElementById('damage_reduction').value = 0;
-    document.getElementById('slot_head_name').value = '';
-    document.getElementById('slot_head_ability').value = '';
-    document.getElementById('slot_chest_name').value = '';
-    document.getElementById('slot_chest_ability').value = '';
-    document.getElementById('slot_arms_name').value = '';
-    document.getElementById('slot_arms_ability').value = '';
-    document.getElementById('slot_legs_name').value = '';
-    document.getElementById('slot_legs_ability').value = '';
-    document.getElementById('slot_acc1_name').value = '';
-    document.getElementById('slot_acc1_ability').value = '';
-
-    for (let i = 1; i <= NUM_SKILL_SLOTS; i++) {
-        const maxEl = document.getElementById(`skill_${i}_max_usage`);
-        const currentEl = document.getElementById(`skill_${i}_current_usage`);
-        if (maxEl) maxEl.value = 3;
-        if (currentEl) currentEl.textContent = 3;
-        updateSkillButtonAppearance(i, 3);
-    }
-
-    updateBars(false);
-    syncHP(false);
-    togglePause(false, false);
-}
-
-function checkCharacterExists(charId) {
-    // Try backend API first, fallback to local file fetch
-    return checkCharacterExistsViaBackend(charId)
-        .catch(() => {
-            // If backend unavailable, fall back to checking local files
-            return fetchCharacterDataFromGitHub(charId).then(data => data !== null);
-        });
-}
-
-function registerCharacter() {
-    const charIdEl = document.getElementById('char-id');
-    if (!charIdEl) {
-        console.error('char-id input not found');
-        return;
-    }
-    const charIdInput = charIdEl.value.trim();
+function connectCharacter() {
+    const charIdInput = document.getElementById('char-id').value.trim();
     if (!charIdInput) {
         document.getElementById('status-message').textContent = "❌ กรุณาใส่ ID ตัวละคร!";
         return;
     }
 
-    isRegistering = true;
-    isLoggingIn = false;
-    setStatusMessage(`⏳ กำลังตรวจสอบ ID: ${charIdInput} ...`, 'info');
-    checkCharacterExists(charIdInput)
-        .then(exists => {
-            if (exists) {
-                isRegistering = false;
-                setStatusMessage(`❌ ID "${charIdInput}" มีอยู่แล้ว โปรดใช้ ID ใหม่หรือกดล็อกอิน`, 'error');
-                return;
-            }
+    console.log("Connecting with ID:", charIdInput);
 
-            connectCharacter(charIdInput);
-            initializeNewCharacter();
-            return saveDataToFirestore('register');
-        })
-        .then((saved) => {
-            if (!isRegistering) return;
-            if (!saved) {
-                throw new Error('ไม่สามารถบันทึกข้อมูลลง GitHub ได้');
-            }
-            document.getElementById('connection-box').style.display = 'none';
-            document.getElementById('game-dashboard').style.display = 'flex';
-            setStatusMessage(`✅ สมัคร ID สำเร็จ: ${charIdInput}`, 'success');
-            isRegistering = false;
-        })
-        .catch(error => {
-            if (error && error.message === 'No character ID') return;
-            isRegistering = false;
-            console.error('Register failed:', error);
-            setStatusMessage(`❌ สมัคร ID ล้มเหลว: ${error.message}`, 'error');
-        });
-}
-
-function loginCharacter() {
-    const charIdEl = document.getElementById('char-id');
-    if (!charIdEl) {
-        console.error('char-id input not found');
-        return;
-    }
-    const charIdInput = charIdEl.value.trim();
-    if (!charIdInput) {
-        document.getElementById('status-message').textContent = "❌ กรุณาใส่ ID ตัวละคร!";
-        return;
-    }
-
-    isLoggingIn = true;
-    isRegistering = false;
-    isLoadingCharacter = true;
-    setStatusMessage(`⏳ กำลังตรวจสอบ ID: ${charIdInput} ...`, 'info');
-    checkCharacterExists(charIdInput)
-        .then(exists => {
-            if (!exists) {
-                isLoggingIn = false;
-                isLoadingCharacter = false;
-                setStatusMessage(`❌ ไม่พบ ID "${charIdInput}" โปรดสมัครก่อน`, 'error');
-                return;
-            }
-
-            connectCharacter(charIdInput);
-            loadDataFromFirestore();
-        })
-        .catch(error => {
-            isLoggingIn = false;
-            isLoadingCharacter = false;
-            console.error('Login failed:', error);
-            setStatusMessage(`❌ ล็อกอินล้มเหลว: ${error.message}`, 'error');
-        });
-}
-
-function connectCharacter(charIdInput) {
-    if (!charIdInput) {
-        setStatusMessage("❌ กรุณาใส่ ID ตัวละคร!", 'error');
-        return;
-    }
-
-    if (characterRef && unsubscribe) {
-        characterRef = null;
-        unsubscribe = null;
-    }
+    // Reset state for new connection
     hasInitialized = false;
     CHARACTER_ID = charIdInput;
-    setInputsDisabled(false);
-    const charIdEl = document.getElementById('char-id');
-    if (charIdEl) charIdEl.disabled = false;
-    console.log('Connected to GitHub character ID:', CHARACTER_ID);
+
+    // Check if character exists first
+    fetch(`${BACKEND_API_URL}/api/check-character`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ id: CHARACTER_ID })
+    })
+    .then(response => response.json())
+    .then(result => {
+        console.log("✅ Backend connection successful");
+
+        document.getElementById('status-message').textContent = `✅ เชื่อมต่อสำเร็จ. ID: ${CHARACTER_ID}`;
+        document.getElementById('connection-box').style.display = 'none';
+        document.getElementById('game-dashboard').style.display = 'flex';
+
+        // Enable all game inputs now that we're connected
+        setInputsDisabled(false);
+
+        // Keep char-id enabled in case they want to reconnect later
+        const charIdEl = document.getElementById('char-id');
+        if (charIdEl) charIdEl.disabled = false;
+
+        loadDataFromFirestore();
+    })
+    .catch(error => {
+        console.error("❌ Backend connection error:", error);
+        document.getElementById('status-message').textContent = `❌ เชื่อมต่อล้มเหลว! Error: ${error.message}`;
+        // Make sure game inputs stay disabled on error, but keep char-id enabled
+        setInputsDisabled(true);
+        const charIdEl = document.getElementById('char-id');
+        if (charIdEl) charIdEl.disabled = false;
+    });
 }
 
 function setInputsDisabled(disabled) {
@@ -822,7 +691,7 @@ function adjustStress(dir) {
 
 /* Heartbeat: decrease timers */
 setInterval(() => {
-    if (!isPaused && CHARACTER_ID) {
+    if (!isPaused && CHARACTER_ID && db) {
         let shouldSave = false;
         if (waterTime > 0) { waterTime--; shouldSave = true; }
         if (foodTime > 0) { foodTime--; shouldSave = true; }
@@ -853,21 +722,19 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('game-dashboard').style.display = 'none';
     document.getElementById('connection-box').style.display = 'block';
     
-    // Make sure char-id input is ALWAYS enabled
+    // Make sure char-id input and connect button are ALWAYS enabled
     const charIdInput = document.getElementById('char-id');
     if (charIdInput) {
         charIdInput.disabled = false;
     }
-
-    const loginBtn = document.getElementById('login-btn');
-    const registerBtn = document.getElementById('register-btn');
-    if (loginBtn) {
-        loginBtn.disabled = false;
-        loginBtn.addEventListener('click', loginCharacter);
-    }
-    if (registerBtn) {
-        registerBtn.disabled = false;
-        registerBtn.addEventListener('click', registerCharacter);
+    
+    // Find and enable the connect button
+    const connectionBox = document.getElementById('connection-box');
+    if (connectionBox) {
+        const connectBtn = connectionBox.querySelector('button');
+        if (connectBtn) {
+            connectBtn.disabled = false;
+        }
     }
 
     // Bind listeners for HP/Stats/Money/Equipment changes to save data
@@ -916,13 +783,12 @@ window.addEventListener('DOMContentLoaded', () => {
 <div class="main-container">
     <div class="box" id="connection-box">
         <h2>🔗 การเชื่อมต่อฐานข้อมูล</h2>
-        <div class="flex" style="width: 100%; align-items: center; gap: 10px;">
+        <div class="flex" style="width: 100%; align-items: center;">
             <label for="char-id" style="min-width: 150px;">ID ตัวละคร:</label>
             <input type="text" id="char-id" value="Player1" style="flex-grow: 1;">
-            <button id="login-btn" onclick="loginCharacter()">ล็อกอิน ID</button>
-            <button id="register-btn" onclick="registerCharacter()">สมัคร ID</button>
+            <button onclick="connectCharacter()">เชื่อมต่อ/เริ่มเกม</button>
         </div>
-        <p id="status-message" style="color:#d1a056; margin-top:10px;">สถานะ: กรอก ID แล้วกด สมัคร ID หรือ ล็อกอิน ID</p>
+        <p id="status-message" style="color:#d1a056; margin-top:10px;">สถานะ: กรุณาใส่ ID และกด "เชื่อมต่อ/เริ่มเกม"</p>
     </div>
 
     <div id="game-dashboard" class="flex-container" style="display:none;">
@@ -1426,34 +1292,9 @@ window.addEventListener('DOMContentLoaded', () => {
         <div id="player-cond-list" style="display:flex; flex-direction:column; gap:10px;"></div>
     </div>
 </div>
-<div id="condition-overlay" style="display:none; position:fixed; top:20px; right:20px; z-index:9999; max-width:320px; pointer-events:none;">
-    <div style="background:rgba(60, 20, 20, 0.95); color:white; padding:15px; border-radius:12px; box-shadow:0 0 20px rgba(0,0,0,0.8); border:3px solid #ff4444;">
-        <h3 style="color:#ff6666; margin:0 0 10px 0; font-size:1.2rem; border-bottom:1px solid #ff4444;">⚠️ คุณติดสถานะผิดปกติ!</h3>
-        <div id="player-cond-list" style="display:flex; flex-direction:column; gap:10px;"></div>
-    </div>
-</div>
 
 <script>
-const CONDITION_RULES = {
-    "Blinded": "มองไม่เห็น, เช็คสกิลที่ใช้สายตาจะล้มเหลวอัตโนมัติ, การโจมตีใส่คุณมี Advantage, คุณโจมตีมี Disadvantage",
-    "Charmed": "โจมตีหรือใช้ความสามารถที่เป็นอันตรายใส่ผู้ร่ายเสน่ห์ไม่ได้, ผู้ร่ายมี Advantage ในการเช็คสกิลทางสังคมกับคุณ",
-    "Deafened": "หูหนวก, มองไม่เห็น, เช็คสกิลที่ใช้การฟังจะล้มเหลวอัตโนมัติ",
-    "Exhaustion": "ความเหนื่อยล้า (6 ระดับ): 1-Disadvantage เช็คสกิล, 2-ความเร็วลดครึ่ง, 3-Disadv. โจมตี/Save, 4-HP Max ลดครึ่ง, 5-ความเร็วเป็น 0, 6-ตาย",
-    "Frightened": "กลัว, มี Disadvantage เมื่อแหล่งกำเนิดความกลัวอยู่ในสายตา, ไม่สามารถเดินเข้าหาแหล่งกำเนิดความกลัวได้",
-    "Grappled": "ถูกยึดจับ, ความเร็ว (Speed) กลายเป็น 0",
-    "Incapacitated": "ไร้ความสามารถ, ไม่สามารถใช้ Action หรือ Reaction ได้",
-    "Invisible": "ล่องหน, ศัตรูมองไม่เห็น, ศัตรูโจมตีคุณมี Disadvantage, คุณโจมตีมี Advantage",
-    "Paralyzed": "เป็นอัมพาต, Incapacitated, เคลื่อนที่หรือพูดไม่ได้, ล้มเหลว Str/Dex Save อัตโนมัติ, ศัตรูโจมตีมี Advantage และเป็น Critical หากอยู่ในระยะ 5 ฟุต",
-    "Petrified": "กลายเป็นหิน, ตัวหนักขึ้น 10 เท่า, Incapacitated, ไม่รับรู้รอบข้าง, ต้านทานดาเมจทุกชนิด, ภูมิคุ้มกันพิษและโรค",
-    "Poisoned": "ติดพิษ, มี Disadvantage ในการโจมตีและเช็คสกิล",
-    "Prone": "นอนราบ, คลานได้อย่างเดียว, โจมตีมี Disadvantage, ศัตรูประชิดตัว (5 ฟุต) โจมตีมี Advantage",
-    "Restrained": "ถูกพันธนาการ, ความเร็วเป็น 0, โจมตีมี Disadvantage, ศัตรูโจมตีมี Advantage, มี Disadvantage ใน Dex Save",
-    "Stunned": "มึนงง, Incapacitated, เคลื่อนที่ไม่ได้, พูดติดอ่าง, ล้มเหลว Str/Dex Save อัตโนมัติ, ศัตรูโจมตีมี Advantage",
-    "Unconscious": "หมดสติ, Incapacitated, ตกอยู่ในสภาพ Prone, ไม่รับรู้รอบข้าง, ล้มเหลว Str/Dex Save อัตโนมัติ, ศัตรูโจมตีใกล้ตัวเป็น Critical"
-};
 
-// Legacy Firestore condition overlay is disabled because character data is now loaded from GitHub files.
-// If you need real-time condition updates from a backend later, implement a dedicated API listener here.
 
 // 1. ฟังก์ชันอัปเดตหน้าจอและคำนวณจาก MG
 function updateManaUI() {

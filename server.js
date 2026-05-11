@@ -125,6 +125,52 @@ app.post('/api/check-character', async (req, res) => {
 });
 
 /**
+ * GET /api/get-character/:id
+ * Gets character data from the repository
+ * URL param: id
+ */
+app.get('/api/get-character/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ error: 'Missing id in URL parameter' });
+    }
+
+    if (!GITHUB_TOKEN) {
+      return res.status(500).json({ error: 'GitHub token not configured on server' });
+    }
+
+    const fileName = `player-data/${encodeURIComponent(id)}.json`;
+
+    try {
+      const response = await octokit.rest.repos.getContent({
+        owner: GITHUB_OWNER,
+        repo: GITHUB_REPO,
+        path: fileName
+      });
+
+      const content = Buffer.from(response.data.content, 'base64').toString('utf-8');
+      const data = JSON.parse(content);
+
+      console.log(`✅ Character ${id} data retrieved successfully`);
+      res.json(data);
+    } catch (err) {
+      if (err.status === 404) {
+        res.status(404).json({ error: 'Character not found' });
+      } else {
+        throw err;
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error getting character:', error.message);
+    res.status(500).json({
+      error: `Failed to get character: ${error.message}`
+    });
+  }
+});
+
+/**
  * GET /api/health
  * Health check endpoint
  */
