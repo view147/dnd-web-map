@@ -172,7 +172,10 @@
    ======================== */
 
 /* --- BACKEND API CONFIGURATION --- */
-const BACKEND_API_URL = localStorage.getItem('backendApiUrl') || 'http://localhost:3000';
+const defaultBackendUrl = window.location.origin && window.location.origin !== 'null'
+    ? window.location.origin
+    : 'http://localhost:3000';
+const BACKEND_API_URL = localStorage.getItem('backendApiUrl') || defaultBackendUrl;
 
 let CHARACTER_ID = "Player1";
 let hasInitialized = false;
@@ -563,9 +566,12 @@ function connectCharacter() {
     })
     .then(response => response.json())
     .then(result => {
-        console.log("✅ Backend connection successful");
+        console.log("✅ Backend connection successful", result);
 
-        document.getElementById('status-message').textContent = `✅ เชื่อมต่อสำเร็จ. ID: ${CHARACTER_ID}`;
+        const statusText = result.exists
+            ? `✅ เชื่อมต่อสำเร็จ. ID: ${CHARACTER_ID}`
+            : `⚠️ ID ใหม่ "${CHARACTER_ID}" จะถูกสร้าง เมื่อเชื่อมต่อสำเร็จ`;
+        document.getElementById('status-message').textContent = statusText;
         document.getElementById('connection-box').style.display = 'none';
         document.getElementById('game-dashboard').style.display = 'flex';
 
@@ -583,7 +589,7 @@ function connectCharacter() {
     })
     .catch(error => {
         console.error("❌ Backend connection error:", error);
-        document.getElementById('status-message').textContent = `❌ เชื่อมต่อล้มเหลว! Error: ${error.message}`;
+        document.getElementById('status-message').textContent = `❌ เชื่อมต่อล้มเหลว! โปรดตรวจสอบว่า backend ทำงานอยู่ที่ ${BACKEND_API_URL} \nError: ${error.message}`;
         // Make sure game inputs stay disabled on error, but keep char-id enabled
         setInputsDisabled(true);
         const charIdEl = document.getElementById('char-id');

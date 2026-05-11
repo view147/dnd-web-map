@@ -23,7 +23,9 @@ This folder is reserved for player registration data files.
    ```
 
 3. **Frontend Connection**
-   - Frontend automatically connects to `http://localhost:3000`
+   - Start the backend server first with `npm start`
+   - Open the frontend from the running server: `http://localhost:3000/characters.html`
+   - By default the frontend connects to the same origin or `http://localhost:3000`
    - Or set custom URL in browser: `localStorage.setItem('backendApiUrl', 'http://your-server:3000')`
 
 ## How It Works
