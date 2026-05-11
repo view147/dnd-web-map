@@ -384,6 +384,29 @@ function saveDataToFirestore(reason = "manual_save") {
     }
 }
 
+function saveDataViaBeacon(reason = "page_unload") {
+    if (!CHARACTER_ID || !navigator.sendBeacon) return false;
+
+    try {
+        const data = getCharacterData();
+        const payload = JSON.stringify({ id: CHARACTER_ID, data });
+        const blob = new Blob([payload], { type: 'application/json' });
+        const sent = navigator.sendBeacon(`${BACKEND_API_URL}/api/save-character`, blob);
+
+        if (sent) {
+            console.log("✅ Beacon save queued:", reason);
+            showSaveStatus("✅ บันทึกอัตโนมัติแล้ว", "success");
+        } else {
+            console.warn("Beacon save failed:", reason);
+        }
+
+        return sent;
+    } catch (e) {
+        console.error("❌ Beacon save error:", e);
+        return false;
+    }
+}
+
 function showSaveStatus(message, type = "info") {
     const statusEl = document.getElementById('status-message') || document.getElementById('save-status');
     if (!statusEl) {
@@ -545,6 +568,9 @@ function connectCharacter() {
         document.getElementById('status-message').textContent = `✅ เชื่อมต่อสำเร็จ. ID: ${CHARACTER_ID}`;
         document.getElementById('connection-box').style.display = 'none';
         document.getElementById('game-dashboard').style.display = 'flex';
+
+        // Save last used ID so user can reconnect later
+        localStorage.setItem('lastCharacterId', CHARACTER_ID);
 
         // Enable all game inputs now that we're connected
         setInputsDisabled(false);
@@ -722,8 +748,12 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('game-dashboard').style.display = 'none';
     document.getElementById('connection-box').style.display = 'block';
     
-    // Make sure char-id input and connect button are ALWAYS enabled
+    // Remember last used ID so player can reconnect quickly
+    const savedId = localStorage.getItem('lastCharacterId');
     const charIdInput = document.getElementById('char-id');
+    if (savedId && charIdInput && !charIdInput.value.trim()) {
+        charIdInput.value = savedId;
+    }
     if (charIdInput) {
         charIdInput.disabled = false;
     }
@@ -773,6 +803,18 @@ window.addEventListener('DOMContentLoaded', () => {
 
     syncHP(false);
     updateBars(false);
+
+    window.addEventListener('beforeunload', () => {
+        if (CHARACTER_ID) {
+            saveDataViaBeacon('beforeunload');
+        }
+    });
+
+    window.addEventListener('pagehide', () => {
+        if (CHARACTER_ID) {
+            saveDataViaBeacon('pagehide');
+        }
+    });
 });
 
 /* End of script */
