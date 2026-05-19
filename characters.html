@@ -1,21 +1,5 @@
 <!DOCTYPE html>
 <html lang="th">
-
-<head>
-
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Characters</title>
-
-</head>
-
-
-<body>
-
-
-<!DOCTYPE html>
-<html lang="th">
 <head>
 <meta charset="utf-8">
 <title>Character Sheet: Fantasy + Survival (Online)</title>
@@ -433,18 +417,38 @@ function loadDataFromFirestore() {
                 updateBars(false);
                 syncHP(false);
                 togglePause(isPaused, false);
-            } else if (!hasInitialized) {
-                // Initialize default status for new characters (3/3 usage) 
-                for (let i = 1; i <= NUM_SKILL_SLOTS; i++) {
-                    const maxEl = document.getElementById(`skill_${i}_max_usage`);
-                    const currentEl = document.getElementById(`skill_${i}_current_usage`);
-                    if(maxEl) maxEl.value = 3;
-                    if(currentEl) currentEl.textContent = 3;
-                    updateSkillButtonAppearance(i, 3);
-                }
-                saveDataToFirestore("initial_create");
-                hasInitialized = true;
+            else {
+    console.log("No character data found.");
+
+    if (!hasInitialized) {
+
+        const defaultData = {
+            hp: 200,
+            maxhp: 200,
+            waterTime: MAX_TIME,
+            foodTime: MAX_TIME,
+            sanity: 100,
+            stress: 0,
+            mana: 100,
+            money: 0,
+            stats: {
+                str: 0,
+                dex: 0,
+                con: 0,
+                int: 0,
+                wis: 0,
+                cha: 0,
+                mg: 0
             }
+        };
+
+        db.collection("characters")
+          .doc(CHARACTER_ID)
+          .set(defaultData, { merge: true });
+
+        hasInitialized = true;
+    }
+}
         });
 }
 
@@ -468,6 +472,8 @@ function connectCharacter() {
 
     CHARACTER_ID = charIdInput;
 
+    localStorage.setItem("dnd_character_id", CHARACTER_ID);
+    
     try {
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
@@ -600,14 +606,19 @@ setInterval(() => {
             }
         }
         updateBars(shouldSave);
-        saveDataToFirestore("heartbeat");
-    }
-}, 1000);
+            }
+}, 5000);
 
 /* ------------------------
    DOM READY: bind listeners + initial UI state
    ------------------------ */
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', () => {const savedCharacter =
+    localStorage.getItem("dnd_character_id");
+
+if (savedCharacter) {
+    document.getElementById('char-id').value = savedCharacter;
+    connectCharacter();
+}
     // Initial UI visibility setup
     document.getElementById('game-dashboard').style.display = 'none';
     document.getElementById('connection-box').style.display = 'block';
@@ -1281,9 +1292,4 @@ function adjustMana(dir) {
 document.getElementById('stat-mg').addEventListener('input', updateManaUI);
 </script>
 </body>
-</html>
-
-
-</body>
-
 </html>
