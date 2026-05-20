@@ -172,6 +172,8 @@ const firebaseConfig = {
 let db;
 let CHARACTER_ID = "Player1";
 let hasInitialized = false;
+let isDataLoaded = false;
+let isGameReady = false;   // flag: true เมื่อโหลดข้อมูลครั้งแรกเสร็จแล้ว ป้องกัน save ก่อนเวลา
 let unsubscribe = null;
 
 /* LOGIC CONFIG */
@@ -213,22 +215,7 @@ function updateSkillButtonAppearance(slotIndex, currentUsage) {
     }
 }
 
-// Function to use a skill (-1 usage)
-function useSkill(slotIndex) {
-    const currentUsageEl = document.getElementById(`skill_${slotIndex}_current_usage`);
-    
-    let currentCount = parseInt(currentUsageEl.textContent);
-    // If text is "หมด" (NaN), treat as 0
-    if (isNaN(currentCount)) currentCount = 0; 
-    
-    if (currentCount > 0) {
-        currentCount--;
-        // *** NEW: Update display text: 0 becomes "หมด" ***
-        currentUsageEl.textContent = currentCount === 0 ? "หมด" : currentCount; 
-        updateSkillButtonAppearance(slotIndex, currentCount);
-        saveDataToFirestore("skill_use");
-    }
-}
+// useSkill is defined later (after mana system is set up)
 
 // Function to refill a skill (+1 usage up to max)
 function refillSkill(slotIndex) {
@@ -257,7 +244,7 @@ function rollDice(type) {
     let total = 0; let rolls = [];
     for(let i=0; i<num; i++) { let r = Math.floor(Math.random() * face) + 1; rolls.push(r); total += r; }
     const el = document.getElementById(type+'_result');
-    if (el) el.textContent = `${total} (${rolls.join(', ')}`;
+    if (el) el.textContent = `${total} (${rolls.join(', ')})`;
 }
 
 // Added back for stress penalty calculation
@@ -278,8 +265,7 @@ function calcStressPenalty() {
 function getCharacterData() {
     const data = {
         id: CHARACTER_ID,
-	mana: currentMana, // แทรกบรรทัดนี้ลงไป
-        lastActive: firebase.firestore.FieldValue.serverTimestamp(),
+        mana: currentMana,
         lastActive: firebase.firestore.FieldValue.serverTimestamp(),
         hp: parseInt(document.getElementById('hp').value) || 0,
         maxhp: parseInt(document.getElementById('maxhp').value) || 200,
@@ -319,7 +305,8 @@ function getCharacterData() {
     for (let i = 1; i <= NUM_SKILL_SLOTS; i++) {
         data[`skill_${i}_name`] = document.getElementById(`skill_${i}_name`)?.value ?? '';
         data[`skill_${i}_desc`] = document.getElementById(`skill_${i}_desc`)?.value ?? '';
-        data[`skill_${i}_max_usage`] = parseInt(document.getElementById(`skill_${i}_max_usage`)?.value) || 3; 
+        data[`skill_${i}_max_usage`] = parseInt(document.getElementById(`skill_${i}_max_usage`)?.value) || 3;
+        data[`skill_${i}_mana_cost`] = parseInt(document.getElementById(`skill_${i}_mana_cost`)?.value) || 0;
         
         const currentUsageText = document.getElementById(`skill_${i}_current_usage`)?.textContent;
         let usageToSave;
@@ -340,7 +327,7 @@ function getCharacterData() {
 
 function saveDataToFirestore(reason = "manual_save") {
     try {
-      if (!db || !CHARACTER_ID) return;
+      if (!db || !CHARACTER_ID || !isGameReady) return;
       const data = getCharacterData();
       db.collection("characters").doc(CHARACTER_ID).set(data, { merge: true });
     } catch (e) {
@@ -348,75 +335,101 @@ function saveDataToFirestore(reason = "manual_save") {
     }
 }
 
+function manualSave() {
+    saveDataToFirestore("manual_save");
+    const btn = document.querySelector('button[onclick="manualSave()"]');
+    if (btn) {
+        const orig = btn.textContent;
+        btn.textContent = "✅ บันทึกแล้ว";
+        setTimeout(() => { btn.textContent = orig; }, 1500);
+    }
+}
+
+function showGameUI() {
+    document.getElementById('status-message').textContent = `✅ เชื่อมต่อสำเร็จ. ID: ${CHARACTER_ID}`;
+    document.getElementById('connection-box').style.display = 'none';
+    document.getElementById('game-dashboard').style.display = 'flex';
+}
+
 function loadDataFromFirestore() {
     if (unsubscribe) unsubscribe();
+    let firstLoad = true;
     unsubscribe = db.collection("characters").doc(CHARACTER_ID)
         .onSnapshot((doc) => {
             if (doc.exists) {
                 const data = doc.data();
+
+                // โหลดค่าตัวเลข/bars ทุกครั้ง (sync realtime)
                 document.getElementById('hp').value = data.hp ?? 200;
                 document.getElementById('maxhp').value = data.maxhp ?? 200;
-                waterTime = data.waterTime ?? MAX_TIME; // **(ส่วนที่แก้ไขแล้ว)**
-                foodTime = data.foodTime ?? MAX_TIME;   // **(ส่วนที่แก้ไขแล้ว)**
+                waterTime = data.waterTime ?? MAX_TIME;
+                foodTime = data.foodTime ?? MAX_TIME;
                 isPaused = data.isPaused ?? false;
                 sanity = data.sanity ?? 100;
                 stress = data.stress ?? 0;
-		currentMana = data.mana ?? 100;
-		if (typeof updateManaUI === "function") updateManaUI();
+                currentMana = data.mana ?? 100;
+                // หมายเหตุ: updateManaUI() จะถูกเรียกหลัง stat-mg โหลดเสร็จใน firstLoad block
 
-                // Load Stats
-                const s = data.stats || {};
-                document.getElementById('stat-str').value = s.str ?? 0;
-                document.getElementById('stat-dex').value = s.dex ?? 0;
-                document.getElementById('stat-con').value = s.con ?? 0;
-                document.getElementById('stat-int').value = s.int ?? 0;
-                document.getElementById('stat-wis').value = s.wis ?? 0;
-                document.getElementById('stat-cha').value = s.cha ?? 0;
-                document.getElementById('stat-mg').value = s.mg ?? 0;
+                // โหลด stats/text/equipment เฉพาะครั้งแรก (ไม่ทับสิ่งที่ผู้เล่นกำลังพิมพ์)
+                if (firstLoad) {
+                    firstLoad = false;
 
-                document.getElementById('money').value = data.money ?? 0;
-                
-                // Load Skill Slot Data
-                for (let i = 1; i <= NUM_SKILL_SLOTS; i++) {
-                    const nameEl = document.getElementById(`skill_${i}_name`);
-                    const descEl = document.getElementById(`skill_${i}_desc`);
-                    const maxUsageEl = document.getElementById(`skill_${i}_max_usage`);
-                    const currentUsageEl = document.getElementById(`skill_${i}_current_usage`);
-                    
-                    const maxUsage = data[`skill_${i}_max_usage`] ?? 3;
-                    const currentUsage = Math.min(maxUsage, data[`skill_${i}_current_usage`] ?? maxUsage); // currentUsage is a number here
+                    // Load Stats
+                    const s = data.stats || {};
+                    document.getElementById('stat-str').value = s.str ?? 0;
+                    document.getElementById('stat-dex').value = s.dex ?? 0;
+                    document.getElementById('stat-con').value = s.con ?? 0;
+                    document.getElementById('stat-int').value = s.int ?? 0;
+                    document.getElementById('stat-wis').value = s.wis ?? 0;
+                    document.getElementById('stat-cha').value = s.cha ?? 0;
+                    document.getElementById('stat-mg').value = s.mg ?? 0;
+                    // เรียก updateManaUI หลัง stat-mg set แล้ว เพื่อให้ maxMana คำนวณถูกต้อง
+                    if (typeof updateManaUI === "function") updateManaUI();
 
-                    if(nameEl) nameEl.value = data[`skill_${i}_name`] ?? '';
-                    if(descEl) descEl.value = data[`skill_${i}_desc`] ?? '';
-                    
-                    if(maxUsageEl) maxUsageEl.value = maxUsage;
-                    
-                    // *** NEW: Set the display text to "หมด" if 0, otherwise the number ***
-                    if(currentUsageEl) {
-                        currentUsageEl.textContent = currentUsage === 0 ? "หมด" : currentUsage;
+                    document.getElementById('money').value = data.money ?? 0;
+
+                    // Load Skill Slot Data
+                    for (let i = 1; i <= NUM_SKILL_SLOTS; i++) {
+                        const nameEl = document.getElementById(`skill_${i}_name`);
+                        const descEl = document.getElementById(`skill_${i}_desc`);
+                        const maxUsageEl = document.getElementById(`skill_${i}_max_usage`);
+                        const currentUsageEl = document.getElementById(`skill_${i}_current_usage`);
+                        const manaCostEl = document.getElementById(`skill_${i}_mana_cost`);
+
+                        const maxUsage = data[`skill_${i}_max_usage`] ?? 3;
+                        const currentUsage = Math.min(maxUsage, data[`skill_${i}_current_usage`] ?? maxUsage);
+
+                        if(nameEl) nameEl.value = data[`skill_${i}_name`] ?? '';
+                        if(descEl) descEl.value = data[`skill_${i}_desc`] ?? '';
+                        if(maxUsageEl) maxUsageEl.value = maxUsage;
+                        if(manaCostEl) manaCostEl.value = data[`skill_${i}_mana_cost`] ?? 0;
+                        if(currentUsageEl) {
+                            currentUsageEl.textContent = currentUsage === 0 ? "หมด" : currentUsage;
+                        }
+                        updateSkillButtonAppearance(i, currentUsage);
                     }
-                    
-                    updateSkillButtonAppearance(i, currentUsage);
-                }
 
-                // Load Armor/Equipment
-                document.getElementById('overall_ac').value = data.overall_ac ?? 10;
-                document.getElementById('overall_md').value = data.overall_md ?? 10;
-                document.getElementById('damage_reduction').value = data.damage_reduction ?? 0;
-                document.getElementById('slot_head_name').value = data.slot_head_name ?? '';
-                document.getElementById('slot_head_ability').value = data.slot_head_ability ?? '';
-                document.getElementById('slot_chest_name').value = data.slot_chest_name ?? '';
-                document.getElementById('slot_chest_ability').value = data.slot_chest_ability ?? '';
-                document.getElementById('slot_arms_name').value = data.slot_arms_name ?? '';
-                document.getElementById('slot_arms_ability').value = data.slot_arms_ability ?? '';
-                document.getElementById('slot_legs_name').value = data.slot_legs_name ?? '';
-                document.getElementById('slot_legs_ability').value = data.slot_legs_ability ?? '';
-                document.getElementById('slot_acc1_name').value = data.slot_acc1_name ?? '';
-                document.getElementById('slot_acc1_ability').value = data.slot_acc1_ability ?? '';
+                    // Load Armor/Equipment
+                    document.getElementById('overall_ac').value = data.overall_ac ?? 10;
+                    document.getElementById('overall_md').value = data.overall_md ?? 10;
+                    document.getElementById('damage_reduction').value = data.damage_reduction ?? 0;
+                    document.getElementById('slot_head_name').value = data.slot_head_name ?? '';
+                    document.getElementById('slot_head_ability').value = data.slot_head_ability ?? '';
+                    document.getElementById('slot_chest_name').value = data.slot_chest_name ?? '';
+                    document.getElementById('slot_chest_ability').value = data.slot_chest_ability ?? '';
+                    document.getElementById('slot_arms_name').value = data.slot_arms_name ?? '';
+                    document.getElementById('slot_arms_ability').value = data.slot_arms_ability ?? '';
+                    document.getElementById('slot_legs_name').value = data.slot_legs_name ?? '';
+                    document.getElementById('slot_legs_ability').value = data.slot_legs_ability ?? '';
+                    document.getElementById('slot_acc1_name').value = data.slot_acc1_name ?? '';
+                    document.getElementById('slot_acc1_ability').value = data.slot_acc1_ability ?? '';
+                } // end firstLoad
 
+                isGameReady = true;   // ✅ พร้อม save ได้แล้ว
                 updateBars(false);
                 syncHP(false);
                 togglePause(isPaused, false);
+
             } else if (!hasInitialized) {
                 // Initialize default status for new characters (3/3 usage) 
                 for (let i = 1; i <= NUM_SKILL_SLOTS; i++) {
@@ -427,6 +440,7 @@ function loadDataFromFirestore() {
                     updateSkillButtonAppearance(i, 3);
                 }
                 saveDataToFirestore("initial_create");
+                isGameReady = true;
                 hasInitialized = true;
             }
         });
@@ -453,18 +467,14 @@ function connectCharacter() {
     CHARACTER_ID = charIdInput;
 
     try {
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-            db = firebase.firestore();
-        } else {
-            db = firebase.firestore();
-        }
+        if (!initFirebase()) return;
 
         document.getElementById('status-message').textContent = `✅ เชื่อมต่อ Firebase สำเร็จ. ID: ${CHARACTER_ID}`;
         document.getElementById('connection-box').style.display = 'none';
         document.getElementById('game-dashboard').style.display = 'flex'; 
 
         loadDataFromFirestore();
+        startConditionListener();
     } catch (e) {
         document.getElementById('status-message').textContent = `❌ เชื่อมต่อล้มเหลว! Error: ${e.message}`;
     }
@@ -570,7 +580,9 @@ setInterval(() => {
         if (waterTime > 0) { waterTime--; shouldSave = true; }
         if (foodTime > 0) { foodTime--; shouldSave = true; }
         if (waterTime <= 0 || foodTime <= 0) {
-            if ((MAX_TIME - waterTime) % 30 === 0 || (MAX_TIME - foodTime) % 30 === 0) {
+            // หัก HP ทุก 30 วินาทีที่ค่าเป็น 0 โดยนับจากเวลาจริงที่ผ่านไป
+            const elapsed = Math.floor(Date.now() / 1000);
+            if (elapsed % 30 === 0) {
                 const hpInput = document.getElementById('hp');
                 if (hpInput) {
                   let currentHP = parseInt(hpInput.value) || 0;
@@ -610,10 +622,11 @@ window.addEventListener('DOMContentLoaded', () => {
     const equipIds = ['slot_head_name','slot_head_ability','slot_chest_name','slot_chest_ability','slot_arms_name','slot_arms_ability','slot_legs_name','slot_legs_ability','slot_acc1_name','slot_acc1_ability'];
     equipIds.forEach(id => document.getElementById(id)?.addEventListener('input', () => saveDataToFirestore("equip_update")));
 
-    // Bind skill name/desc/max_usage changes
+    // Bind skill name/desc/max_usage/mana_cost changes
     for (let i = 1; i <= NUM_SKILL_SLOTS; i++) {
         document.getElementById(`skill_${i}_name`)?.addEventListener('input', () => saveDataToFirestore("skill_data_update"));
         document.getElementById(`skill_${i}_desc`)?.addEventListener('input', () => saveDataToFirestore("skill_data_update"));
+        document.getElementById(`skill_${i}_mana_cost`)?.addEventListener('input', () => saveDataToFirestore("skill_mana_cost_update"));
         document.getElementById(`skill_${i}_max_usage`)?.addEventListener('input', () => {
              // Optional: Refill the skill to the new max if current usage was too high
              const currentUsageEl = document.getElementById(`skill_${i}_current_usage`);
@@ -630,10 +643,95 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // เชื่อม MG ให้ขยับหลอดมานาทันที
+    document.getElementById('stat-mg').addEventListener('input', updateManaUI);
+
     syncHP(false);
     updateBars(false);
 });
+function initFirebase() {
+    try {
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        db = firebase.firestore();
+        return true;
+    } catch(e) {
+        alert("❌ เชื่อมต่อ Firebase ล้มเหลว: " + e.message);
+        return false;
+    }
+}
 
+function createNewCharacter() {
+    const charId = document.getElementById('char-id').value.trim();
+    if (!charId) {
+        alert("กรุณาใส่ชื่อรหัสตัวละคร");
+        return;
+    }
+
+    if (!initFirebase()) return;
+
+    // Stop previous listener
+    if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+    hasInitialized = false;
+    isGameReady = false;
+    CHARACTER_ID = charId;
+
+    const ref = db.collection("characters").doc(charId);
+
+    ref.get().then(doc => {
+        if (doc.exists) {
+            alert("❌ มีรหัสนี้อยู่แล้ว");
+            return;
+        }
+
+        isDataLoaded = true;
+
+        ref.set(getCharacterData())
+           .then(() => {
+               alert("✅ สร้างรหัสใหม่เรียบร้อย");
+               document.getElementById('status-message').textContent = `✅ เชื่อมต่อสำเร็จ. ID: ${CHARACTER_ID}`;
+               document.getElementById('connection-box').style.display = 'none';
+               document.getElementById('game-dashboard').style.display = 'flex';
+               loadDataFromFirestore();
+               startConditionListener();
+           });
+    }).catch(e => alert("❌ Error: " + e.message));
+}
+
+function loginCharacter() {
+    const charId = document.getElementById('char-id').value.trim();
+    if (!charId) {
+        alert("กรุณาใส่ชื่อรหัสตัวละคร");
+        return;
+    }
+
+    if (!initFirebase()) return;
+
+    // Stop previous listener
+    if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+    hasInitialized = false;
+    isGameReady = false;
+    CHARACTER_ID = charId;
+
+    const ref = db.collection("characters").doc(charId);
+
+    ref.get().then(doc => {
+        if (!doc.exists) {
+            alert("❌ ไม่พบรหัสนี้ในระบบ");
+            return;
+        }
+
+        isDataLoaded = true;
+        document.getElementById('status-message').textContent = `✅ เชื่อมต่อสำเร็จ. ID: ${CHARACTER_ID}`;
+        document.getElementById('connection-box').style.display = 'none';
+        document.getElementById('game-dashboard').style.display = 'flex';
+        loadDataFromFirestore();
+        startConditionListener();
+    }).catch(e => alert("❌ Error: " + e.message));
+}
+window.createNewCharacter = createNewCharacter;
+window.loginCharacter = loginCharacter;
 /* End of script */
 </script>
 </head>
@@ -645,7 +743,8 @@ window.addEventListener('DOMContentLoaded', () => {
         <div class="flex" style="width: 100%; align-items: center;">
             <label for="char-id" style="min-width: 150px;">ID ตัวละคร:</label>
             <input type="text" id="char-id" value="Player1" style="flex-grow: 1;">
-            <button onclick="connectCharacter()">เชื่อมต่อ/เริ่มเกม</button>
+            <button onclick="createNewCharacter()">🆕 สร้างรหัสใหม่</button>
+<button onclick="loginCharacter()">🔑 ล็อคอิน</button>
         </div>
         <p id="status-message" style="color:#d1a056; margin-top:10px;">สถานะ: กรุณาใส่ ID และกด "เชื่อมต่อ/เริ่มเกม"</p>
     </div>
@@ -772,7 +871,7 @@ window.addEventListener('DOMContentLoaded', () => {
 			<div style="color:#00aaff; font-size:0.8rem; margin:5px 0;">
     			        ใช้มานา:
     			        <input type="number"
-           			      id="skill_1_mana_cost"
+           			      id="skill_2_mana_cost"
           		 	      value="0"
           		 	      min="0"
           		 	      style="width:45px; background:#1a1a1a; color:#00aaff; border:1px solid #00aaff; border-radius:3px;">
@@ -796,7 +895,7 @@ window.addEventListener('DOMContentLoaded', () => {
 			<div style="color:#00aaff; font-size:0.8rem; margin:5px 0;">
     			        ใช้มานา:
     			        <input type="number"
-           			      id="skill_1_mana_cost"
+           			      id="skill_3_mana_cost"
           		 	      value="0"
           		 	      min="0"
           		 	      style="width:45px; background:#1a1a1a; color:#00aaff; border:1px solid #00aaff; border-radius:3px;">
@@ -820,7 +919,7 @@ window.addEventListener('DOMContentLoaded', () => {
 			<div style="color:#00aaff; font-size:0.8rem; margin:5px 0;">
     			        ใช้มานา:
     			        <input type="number"
-           			      id="skill_1_mana_cost"
+           			      id="skill_4_mana_cost"
           		 	      value="0"
           		 	      min="0"
           		 	      style="width:45px; background:#1a1a1a; color:#00aaff; border:1px solid #00aaff; border-radius:3px;">
@@ -844,7 +943,7 @@ window.addEventListener('DOMContentLoaded', () => {
 			<div style="color:#00aaff; font-size:0.8rem; margin:5px 0;">
     			        ใช้มานา:
     			        <input type="number"
-           			      id="skill_1_mana_cost"
+           			      id="skill_5_mana_cost"
           		 	      value="0"
           		 	      min="0"
           		 	      style="width:45px; background:#1a1a1a; color:#00aaff; border:1px solid #00aaff; border-radius:3px;">
@@ -868,7 +967,7 @@ window.addEventListener('DOMContentLoaded', () => {
 			<div style="color:#00aaff; font-size:0.8rem; margin:5px 0;">
     			        ใช้มานา:
     			        <input type="number"
-           			      id="skill_1_mana_cost"
+           			      id="skill_6_mana_cost"
           		 	      value="0"
           		 	      min="0"
           		 	      style="width:45px; background:#1a1a1a; color:#00aaff; border:1px solid #00aaff; border-radius:3px;">
@@ -892,7 +991,7 @@ window.addEventListener('DOMContentLoaded', () => {
 			<div style="color:#00aaff; font-size:0.8rem; margin:5px 0;">
     			        ใช้มานา:
     			        <input type="number"
-           			      id="skill_1_mana_cost"
+           			      id="skill_7_mana_cost"
           		 	      value="0"
           		 	      min="0"
           		 	      style="width:45px; background:#1a1a1a; color:#00aaff; border:1px solid #00aaff; border-radius:3px;">
@@ -916,7 +1015,7 @@ window.addEventListener('DOMContentLoaded', () => {
 			<div style="color:#00aaff; font-size:0.8rem; margin:5px 0;">
     			        ใช้มานา:
     			        <input type="number"
-           			      id="skill_1_mana_cost"
+           			      id="skill_8_mana_cost"
           		 	      value="0"
           		 	      min="0"
           		 	      style="width:45px; background:#1a1a1a; color:#00aaff; border:1px solid #00aaff; border-radius:3px;">
@@ -940,7 +1039,7 @@ window.addEventListener('DOMContentLoaded', () => {
 			<div style="color:#00aaff; font-size:0.8rem; margin:5px 0;">
     			        ใช้มานา:
     			        <input type="number"
-           			      id="skill_1_mana_cost"
+           			      id="skill_9_mana_cost"
           		 	      value="0"
           		 	      min="0"
           		 	      style="width:45px; background:#1a1a1a; color:#00aaff; border:1px solid #00aaff; border-radius:3px;">
@@ -964,7 +1063,7 @@ window.addEventListener('DOMContentLoaded', () => {
 			<div style="color:#00aaff; font-size:0.8rem; margin:5px 0;">
     			        ใช้มานา:
     			        <input type="number"
-           			      id="skill_1_mana_cost"
+           			      id="skill_10_mana_cost"
           		 	      value="0"
           		 	      min="0"
           		 	      style="width:45px; background:#1a1a1a; color:#00aaff; border:1px solid #00aaff; border-radius:3px;">
@@ -988,7 +1087,7 @@ window.addEventListener('DOMContentLoaded', () => {
 			<div style="color:#00aaff; font-size:0.8rem; margin:5px 0;">
     			        ใช้มานา:
     			        <input type="number"
-           			      id="skill_1_mana_cost"
+           			      id="skill_11_mana_cost"
           		 	      value="0"
           		 	      min="0"
           		 	      style="width:45px; background:#1a1a1a; color:#00aaff; border:1px solid #00aaff; border-radius:3px;">
@@ -1012,7 +1111,7 @@ window.addEventListener('DOMContentLoaded', () => {
 			<div style="color:#00aaff; font-size:0.8rem; margin:5px 0;">
     			        ใช้มานา:
     			        <input type="number"
-           			      id="skill_1_mana_cost"
+           			      id="skill_12_mana_cost"
           		 	      value="0"
           		 	      min="0"
           		 	      style="width:45px; background:#1a1a1a; color:#00aaff; border:1px solid #00aaff; border-radius:3px;">
@@ -1036,7 +1135,7 @@ window.addEventListener('DOMContentLoaded', () => {
 			<div style="color:#00aaff; font-size:0.8rem; margin:5px 0;">
     			        ใช้มานา:
     			        <input type="number"
-           			      id="skill_1_mana_cost"
+           			      id="skill_13_mana_cost"
           		 	      value="0"
           		 	      min="0"
           		 	      style="width:45px; background:#1a1a1a; color:#00aaff; border:1px solid #00aaff; border-radius:3px;">
@@ -1060,7 +1159,7 @@ window.addEventListener('DOMContentLoaded', () => {
 			<div style="color:#00aaff; font-size:0.8rem; margin:5px 0;">
     			        ใช้มานา:
     			        <input type="number"
-           			      id="skill_1_mana_cost"
+           			      id="skill_14_mana_cost"
           		 	      value="0"
           		 	      min="0"
           		 	      style="width:45px; background:#1a1a1a; color:#00aaff; border:1px solid #00aaff; border-radius:3px;">
@@ -1083,7 +1182,7 @@ window.addEventListener('DOMContentLoaded', () => {
 			<div style="color:#00aaff; font-size:0.8rem; margin:5px 0;">
     			        ใช้มานา:
     			        <input type="number"
-           			      id="skill_1_mana_cost"
+           			      id="skill_15_mana_cost"
           		 	      value="0"
           		 	      min="0"
           		 	      style="width:45px; background:#1a1a1a; color:#00aaff; border:1px solid #00aaff; border-radius:3px;">
@@ -1104,7 +1203,7 @@ window.addEventListener('DOMContentLoaded', () => {
         </div>
 
         <div class="right-column">
-            <div class="body-img-container"><h2>👤 ร่างกาย</h2><img src="body_outline.png" alt="Body Outline" style="max-height: 450px;"></div>
+            <div class="body-img-container"><h2>👤 ร่างกาย</h2><img src="body_outline.png" alt="Body Outline" style="max-height: 450px;"></div><button onclick="manualSave()" style="margin-top:8px;">💾 Save</button>
             <div class="armor-box">
                 <h2>🛡️ อุปกรณ์</h2>
 <div class="armor-field"><label>ป้องกัน (AC):</label><input type="number" value="10" id="overall_ac" class="small-stat-input"></div>
@@ -1151,12 +1250,6 @@ window.addEventListener('DOMContentLoaded', () => {
         <div id="player-cond-list" style="display:flex; flex-direction:column; gap:10px;"></div>
     </div>
 </div>
-<div id="condition-overlay" style="display:none; position:fixed; top:20px; right:20px; z-index:9999; max-width:320px; pointer-events:none;">
-    <div style="background:rgba(60, 20, 20, 0.95); color:white; padding:15px; border-radius:12px; box-shadow:0 0 20px rgba(0,0,0,0.8); border:3px solid #ff4444;">
-        <h3 style="color:#ff6666; margin:0 0 10px 0; font-size:1.2rem; border-bottom:1px solid #ff4444;">⚠️ คุณติดสถานะผิดปกติ!</h3>
-        <div id="player-cond-list" style="display:flex; flex-direction:column; gap:10px;"></div>
-    </div>
-</div>
 
 <script>
 const CONDITION_RULES = {
@@ -1178,11 +1271,8 @@ const CONDITION_RULES = {
 };
 
 // ฟังก์ชันดึงข้อมูลจาก Firebase มาแสดงผลหน้าจอผู้เล่น
-const originalConnect = connectCharacter;
-connectCharacter = function() {
-    originalConnect(); // เรียกใช้งานโค้ดเดิมของคุณ
-    
-    // เริ่มติดตามสถานะจาก Firebase
+// เชื่อมการติดตาม condition overlay เข้ากับ connectCharacter โดยใช้ wrapper แทน reassign
+function startConditionListener() {
     setTimeout(() => {
         if (!db || !CHARACTER_ID) return;
         db.collection("characters").doc(CHARACTER_ID).onSnapshot((doc) => {
@@ -1206,12 +1296,14 @@ connectCharacter = function() {
             }
         });
     }, 2000);
-};
+}
 // 1. ฟังก์ชันอัปเดตหน้าจอและคำนวณจาก MG
 function updateManaUI() {
     const mg = parseInt(document.getElementById('stat-mg').value) || 0;
     maxMana = mg * 10;
-    if (currentMana > maxMana) currentMana = maxMana;
+
+    // clamp ก็ต่อเมื่อ maxMana > 0 เท่านั้น ป้องกัน reset mana เป็น 0 ก่อน stat โหลด
+    if (maxMana > 0 && currentMana > maxMana) currentMana = maxMana;
 
     const bar = document.getElementById('mana-bar');
     const curDisp = document.getElementById('current-mana-display');
@@ -1220,7 +1312,7 @@ function updateManaUI() {
     if (curDisp) curDisp.textContent = Math.floor(currentMana);
     if (maxDisp) maxDisp.textContent = maxMana;
     if (bar) {
-        let pct = (currentMana / maxMana) * 100;
+        let pct = maxMana > 0 ? (currentMana / maxMana) * 100 : 0;
         bar.style.width = Math.min(pct, 100) + "%";
         bar.textContent = Math.floor(currentMana) + "/" + maxMana;
     }
@@ -1261,8 +1353,7 @@ function adjustMana(dir) {
     saveDataToFirestore("mana_manual");
 }
 
-// 4. เชื่อม MG ให้ขยับหลอดมานาทันที
-document.getElementById('stat-mg').addEventListener('input', updateManaUI);
+// 4. (listener ย้ายไปอยู่ใน DOMContentLoaded แล้ว)
 </script>
 </body>
 </html>
