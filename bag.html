@@ -2,28 +2,9 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Player Backpack System v4 — Full Stable Build</title>
-
-<!-- =========================================================
- SYSTEM GOAL
- - Login ด้วย Character ID
- - ข้อมูลแยกตาม characters/{ID}
- - เพิ่มกระเป๋า: ต้องตั้งชื่อ + กำหนดน้ำหนัก
- - เพิ่มไอเทม:
-     * ชื่อซ้ำ = stack
-     * เช็กน้ำหนักทุกกรณี (ทั้งเพิ่มใหม่ + เพิ่มซ้ำ)
-     * ถ้าเกิน = แจ้งเตือน + ไม่เพิ่ม
- - ลบไอเทม:
-     * ลบทีละ 1 ได้
-     * ลบทั้งหมดได้
- - UI แบบ Sheet
- - โค้ดยาว intentionally (>= 20,000 chars)
-========================================================= -->
+<title>Player Backpack System — FIXED (DM Visible)</title>
 
 <style>
-/* =========================
-   GLOBAL STYLE
-========================= */
 body{
     background:#efe6d2;
     font-family:"Segoe UI",serif;
@@ -51,10 +32,7 @@ button,input{
     background:#eee;
     padding:4px 6px;
 }
-button:hover{
-    background:#ddd;
-    cursor:pointer;
-}
+button:hover{background:#ddd;cursor:pointer}
 .bag{
     border:2px solid #000;
     margin-bottom:22px;
@@ -100,32 +78,30 @@ hr{border:none;border-top:1px solid #000;margin:10px 0;}
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
 
 <script>
-/* =========================================================
+/* =========================
    FIREBASE INIT
-========================================================= */
+========================= */
 const firebaseConfig={
     apiKey:"AIzaSyD_ELoo4XEXn9Xoo7zulw7yG78yAsvDoEU",
     authDomain:"dnd-pale-character-5ec73.firebaseapp.com",
     projectId:"dnd-pale-character-5ec73"
 };
-firebase.initializeApp(firebaseConfig);
+if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const db=firebase.firestore();
 
-/* =========================================================
+/* =========================
    GLOBAL STATE
-========================================================= */
+========================= */
 let CHARACTER_ID=null;
-let STATE={
-    bags:[]
-};
+let STATE={bags:[]};
 let unsubscribe=null;
 
-/* =========================================================
-   LOGIN SYSTEM
-========================================================= */
+/* =========================
+   LOGIN
+========================= */
 function login(){
     const id=document.getElementById("login-id").value.trim();
-    if(!id){ alert("กรุณาใส่ Character ID"); return; }
+    if(!id) return;
     CHARACTER_ID=id;
     localStorage.setItem("CHAR_ID",id);
     document.getElementById("login").style.display="none";
@@ -134,182 +110,189 @@ function login(){
     subscribeCharacter();
 }
 function logout(){
-    if(unsubscribe)unsubscribe();
-    unsubscribe=null;
+    if(unsubscribe) unsubscribe();
+    localStorage.removeItem("CHAR_ID");
     CHARACTER_ID=null;
     STATE={bags:[]};
-    localStorage.removeItem("CHAR_ID");
     document.getElementById("app").style.display="none";
     document.getElementById("login").style.display="block";
 }
 
-/* =========================================================
-   FIRESTORE SYNC
-========================================================= */
+/* =========================
+   🔧 FIXED FIRESTORE SUBSCRIBE
+   - สร้าง document ทันทีที่ล็อกอิน
+   - DM จะเห็นผู้เล่นแน่นอน
+========================= */
 function subscribeCharacter(){
-    if(unsubscribe)unsubscribe();
-    unsubscribe=db.collection("characters").doc(CHARACTER_ID)
-    .onSnapshot(doc=>{
+    if(unsubscribe) unsubscribe();
+
+    const ref=db.collection("characters").doc(CHARACTER_ID);
+
+    unsubscribe=ref.onSnapshot(doc=>{
         if(!doc.exists){
             STATE={bags:[]};
-            save();
+            ref.set({
+                bags:[],
+                createdAt:firebase.firestore.FieldValue.serverTimestamp()
+            });
         }else{
             STATE=normalize(doc.data());
         }
         render();
     });
 }
+
+/* =========================
+   SAVE
+========================= */
 function save(){
+    if(!CHARACTER_ID) return;
     db.collection("characters").doc(CHARACTER_ID)
-    .set(STATE,{merge:true});
+    .set(STATE,{merge:true})
+    .catch(err=>console.error("Save failed:",err));
 }
 
-/* =========================================================
-   NORMALIZE DATA
-========================================================= */
+/* =========================
+   NORMALIZE
+========================= */
 function normalize(data){
-    const bags=(data.bags||[]).map(b=>{
-        return {
-            name:b.name||"กระเป๋า",
-            max:Number(b.max)||30,
-            items:(b.items||[]).map(i=>{
-                return {
-                    name:i.name,
-                    weight:Number(i.weight),
-                    qty:Number(i.qty)||1
-                };
-            })
-        };
-    });
-    return {bags};
+    return {
+        bags:(data.bags||[]).map(b=>({
+            name:b.name,
+            max:Number(b.max),
+            items:(b.items||[]).map(i=>({
+                name:i.name,
+                weight:Number(i.weight),
+                qty:Number(i.qty)
+            }))
+        }))
+    };
 }
 
-/* =========================================================
-   WEIGHT LOGIC (CORE FIX)
-========================================================= */
-function bagWeight(bag){
-    let total=0;
-    for(let i=0;i<bag.items.length;i++){
-        total+=bag.items[i].weight*bag.items[i].qty;
-    }
-    return total;
+/* =========================
+   WEIGHT LOGIC
+========================= */
+function bagWeight(b){
+    return b.items.reduce((s,i)=>s+i.weight*i.qty,0);
 }
-function canAddWeight(bag,added){
-    return bagWeight(bag)+added<=bag.max;
+function canAdd(b,w){
+    return bagWeight(b)+w<=b.max;
 }
 
-/* =========================================================
-   RENDER UI
-========================================================= */
+/* =========================
+   RENDER
+========================= */
 function render(){
     const box=document.getElementById("bags");
     box.innerHTML="";
-    for(let bi=0;bi<STATE.bags.length;bi++){
-        const bag=STATE.bags[bi];
-        const used=bagWeight(bag);
-        const remain=bag.max-used;
-        const cls=remain<0?"over":remain<5?"warn":"";
+    STATE.bags.forEach((b,bi)=>{
+        const used=parseFloat(bagWeight(b).toFixed(2));
+        const cls=used>b.max?"over":b.max-used<5?"warn":"";
         let html=`
         <div class="bag">
             <div class="bag-head">
-                <span>${bag.name}</span>
-                <span class="${cls}">${used.toFixed(1)} / ${bag.max} kg</span>
+                <span>${b.name}</span>
+                <span class="${cls}">${used}/${b.max} kg</span>
             </div>
-            <div class="section">
-        `;
-        for(let ii=0;ii<bag.items.length;ii++){
-            const it=bag.items[ii];
+            <div class="section">`;
+        if(b.items.length===0){
+            html+=`<div style="color:#999;font-style:italic">— ยังไม่มีไอเทม —</div>`;
+        }
+        b.items.forEach((it,ii)=>{
+            const lineW=(it.weight*it.qty).toFixed(2);
             html+=`
             <div class="row">
-                <span style="flex:1">☐ ${it.name}</span>
-                <span>x${it.qty}</span>
+                <span style="flex:1">${it.name}</span>
+                <span style="color:#666;font-size:0.85em">${it.weight}kg x${it.qty} = ${lineW}kg</span>
                 <button onclick="removeOne(${bi},${ii})">-1</button>
-                <button onclick="removeAll(${bi},${ii})">ลบทั้งหมด</button>
-            </div>
-            `;
-        }
+                <button onclick="removeAll(${bi},${ii})">ลบ</button>
+            </div>`;
+        });
         html+=`
             </div>
             <div class="row">
-                <input id="iname${bi}" placeholder="ชื่อไอเทม">
-                <input id="iw${bi}" type="number" placeholder="kg" style="width:60px">
-                <input id="iq${bi}" type="number" value="1" style="width:50px">
-                <button onclick="addItem(${bi})">เพิ่ม</button>
+                <input id="n${bi}" placeholder="ชื่อไอเทม">
+                <input id="w${bi}" type="number" placeholder="kg" style="width:60px">
+                <input id="q${bi}" type="number" value="1" style="width:50px">
+                <button onclick="addItem(${bi})">+ เพิ่ม</button>
             </div>
-        </div>
-        `;
+            <div style="margin-top:8px">
+                <button onclick="deleteBag(${bi})" style="background:#fdd;border-color:#c00;color:#c00">🗑️ ลบกระเป๋านี้</button>
+            </div>
+        </div>`;
         box.innerHTML+=html;
-    }
+    });
 }
 
-/* =========================================================
-   ITEM ACTIONS (FIXED)
-========================================================= */
+/* =========================
+   ACTIONS
+========================= */
 function addItem(bi){
-    const n=document.getElementById("iname"+bi).value.trim();
-    const w=parseFloat(document.getElementById("iw"+bi).value);
-    const q=parseInt(document.getElementById("iq"+bi).value)||1;
-    if(!n||w<=0||q<=0)return;
+    const n=document.getElementById("n"+bi).value.trim();
+    const w=parseFloat(document.getElementById("w"+bi).value);
+    const q=parseInt(document.getElementById("q"+bi).value)||1;
+    if(!n||isNaN(w)||w<=0||q<=0) return;
 
     const bag=STATE.bags[bi];
-    const added=w*q;
 
-    /* FIX 1: เช็กน้ำหนักก่อนเสมอ */
-    if(!canAddWeight(bag,added)){
-        alert("น้ำหนักเกิน ไม่สามารถเพิ่มไอเทมได้");
+    // เช็คน้ำหนักครั้งเดียวก่อนทำอะไรทั้งนั้น
+    if(!canAdd(bag,w*q)){
+        alert("น้ำหนักเกิน (ต้องการ "+(w*q).toFixed(2)+" kg แต่เหลือ "+(bag.max-bagWeight(bag)).toFixed(2)+" kg)");
         return;
     }
 
-    const found=bag.items.find(i=>i.name===n && i.weight===w);
-
-    if(found){
-        /* FIX 2: เพิ่มซ้ำก็เช็กน้ำหนัก */
-        if(!canAddWeight(bag,w*q)){
-            alert("น้ำหนักเกิน ไม่สามารถเพิ่มไอเทมได้");
-            return;
-        }
-        found.qty+=q;
+    const f=bag.items.find(i=>i.name===n&&i.weight===w);
+    if(f){
+        f.qty+=q;
     }else{
         bag.items.push({name:n,weight:w,qty:q});
     }
     save();
+    render();
 }
-
+function deleteBag(bi){
+    if(!confirm("ลบกระเป๋า \""+STATE.bags[bi].name+"\" ?")) return;
+    STATE.bags.splice(bi,1);
+    save();
+    render();
+}
 function removeOne(bi,ii){
     const it=STATE.bags[bi].items[ii];
-    it.qty-=1;
-    if(it.qty<=0){
-        STATE.bags[bi].items.splice(ii,1);
-    }
+    it.qty--;
+    if(it.qty<=0) STATE.bags[bi].items.splice(ii,1);
     save();
+    render();
 }
-
 function removeAll(bi,ii){
     STATE.bags[bi].items.splice(ii,1);
     save();
+    render();
 }
 
-/* =========================================================
-   BAG CREATION
-========================================================= */
+/* =========================
+   BAG CREATE
+========================= */
 function openBagModal(){
+    document.getElementById("bname").value="";
+    document.getElementById("bmax").value="";
     document.getElementById("modal").style.display="flex";
+}
+function closeModal(){
+    document.getElementById("modal").style.display="none";
 }
 function createBag(){
     const n=document.getElementById("bname").value.trim();
     const m=parseFloat(document.getElementById("bmax").value);
-    if(!n||m<=0){
-        alert("ข้อมูลไม่ครบ");
-        return;
-    }
+    if(!n||!(m>0)) return;
     STATE.bags.push({name:n,max:m,items:[]});
-    document.getElementById("modal").style.display="none";
+    closeModal();
     save();
+    render();
 }
 
-/* =========================================================
+/* =========================
    AUTO LOGIN
-========================================================= */
+========================= */
 window.onload=()=>{
     const id=localStorage.getItem("CHAR_ID");
     if(id){
@@ -324,7 +307,7 @@ window.onload=()=>{
 
 <div id="login" class="sheet">
 <h3>Player Login</h3>
-<input id="login-id" placeholder="Character ID">
+<input id="login-id" placeholder="Character ID" onkeydown="if(event.key==='Enter') login()">
 <button onclick="login()">เข้าใช้งาน</button>
 </div>
 
@@ -344,15 +327,13 @@ window.onload=()=>{
 </div>
 </div>
 
-<div id="modal" class="modal">
+<div id="modal" class="modal" onclick="if(event.target===this) closeModal()">
 <div class="modal-box">
 <h3>สร้างกระเป๋า</h3>
-<label>ชื่อกระเป๋า</label><br>
-<input id="bname"><br><br>
-<label>น้ำหนักสูงสุด (kg)</label><br>
-<input id="bmax" type="number"><br><br>
+ชื่อ: <input id="bname" onkeydown="if(event.key==='Enter') createBag()"><br><br>
+น้ำหนักสูงสุด (kg): <input id="bmax" type="number" onkeydown="if(event.key==='Enter') createBag()"><br><br>
 <button onclick="createBag()">สร้าง</button>
-<button onclick="document.getElementById('modal').style.display='none'">ยกเลิก</button>
+<button onclick="closeModal()">ยกเลิก</button>
 </div>
 </div>
 
