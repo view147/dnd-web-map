@@ -1,1 +1,65 @@
+body {
+  margin: 0;
+  background: #111;
+  color: #eee;
+  font-family: sans-serif;
+}
 
+#game {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+#game-info {
+  padding: 10px;
+  background: #1b1b1b;
+  display: flex;
+  justify-content: space-between;
+}
+
+#battlefield {
+  flex: 1;
+  display: flex;
+}
+
+#player-team,
+#enemy-team {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #333;
+}
+
+.character-slot,
+.enemy-slot {
+  margin: 5px 0;
+  padding: 10px;
+  background: #222;
+  border: 1px solid #444;
+  cursor: pointer;
+}
+
+.character-slot:hover,
+.enemy-slot:hover {
+  background: #333;
+}
+
+#command-panel {
+  padding: 10px;
+  background: #1b1b1b;
+  display: flex;
+  gap: 10px;
+}
+
+#command-panel button {
+  flex: 1;
+  padding: 10px;
+  background: #333;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+#command-panel button:hover {
+  background: #555;
+}
