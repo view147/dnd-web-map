@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>Turn-Based RPG</title>
+  <link rel="stylesheet" href="ui/ui.css">
+</head>
+<body>
+
+<div id="game">
+
+  <!-- Top Info -->
+  <header id="game-info">
+    <div id="story-text">Chapter 01 – หลังจากผ่านไป 500 ปี...</div>
+    <div id="turn-info">Turn: Player</div>
+  </header>
+
+  <!-- Battlefield -->
+  <main id="battlefield">
+
+    <!-- Player Side -->
+    <section id="player-team">
+      <h2>Player Team</h2>
+      <div class="character-slot">Hero</div>
+      <div class="character-slot">Ally 1</div>
+      <div class="character-slot">Ally 2</div>
+      <div class="character-slot">Ally 3</div>
+      <div class="character-slot">Ally 4</div>
+    </section>
+
+    <!-- Enemy Side -->
+    <section id="enemy-team">
+      <h2>Enemies</h2>
+      <div class="enemy-slot">Enemy A</div>
+      <div class="enemy-slot">Enemy B</div>
+    </section>
+
+  </main>
+
+  <!-- Command Panel -->
+  <footer id="command-panel">
+    <button>Attack</button>
+    <button>Skill</button>
+    <button>Defend</button>
+    <button>Risk</button>
+    <button>End Turn</button>
+  </footer>
+
+</div>
+
+<script src="ui/ui.js"></script>
+</body>
+</html>
