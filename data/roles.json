@@ -1,1 +1,9 @@
-
+{
+  "Medic": {
+    "treatBonus": 0.2,
+    "infectionRiskReduction": 0.15
+  },
+  "Engineer": {
+    "repairBonus": 0.3
+  }
+}
