@@ -1,1 +1,6 @@
-
+{
+  "name": "Dr. Lin",
+  "role": "Medic",
+  "startingCondition": [],
+  "storyTag": "season_1"
+}
