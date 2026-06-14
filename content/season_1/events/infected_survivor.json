@@ -1,1 +1,11 @@
-
+{
+  "id": "infected_survivor",
+  "conditions": {
+    "dayMin": 3,
+    "map": "abandoned_city"
+  },
+  "choices": [
+    { "id": "help", "effects": ["+risk", "+info"] },
+    { "id": "leave", "effects": ["-morale"] }
+  ]
+}
