@@ -1,73 +1,62 @@
 // gm_panel.ts
-import { GameState, Phase } from "../engine/game_state";
-import { TurnManager } from "../engine/turn_manager";
+import {
+  GameState,
+  setGamePhase,
+  addGMNote,
+  triggerEnding,
+} from "./engine/game_state";
+import { TurnManager } from "./engine/turn_manager";
+import { InfectionEngine } from "./engine/infection_engine";
+import { GameEvent } from "./engine/event_engine";
 
 /* =========================
-   FLOW OVERRIDE
+   Types
    ========================= */
 
-export function gmSetPhase(state: GameState, phase: Phase) {
-  TurnManager.setPhase(state, phase);
+export interface GMPanelConfig {
+  onGMEvent: (event: GameEvent, choiceId: string) => void;
+  onForceEnd: () => void;
+}
 
-  state.logs.push({
-    time: Date.now(),
-    source: "GM",
-    message: `forces phase to ${phase}`
+/* =========================
+   Bind (called from index.ts)
+   ========================= */
+
+export function bindGMPanel(config: GMPanelConfig) {
+  // Force end turn
+  document.getElementById("gm-force-end")?.addEventListener("click", () => {
+    config.onForceEnd();
+  });
+
+  // Advance time
+  document.getElementById("gm-advance-time")?.addEventListener("click", () => {
+    // handled via onForceEnd flow
+    config.onForceEnd();
   });
 }
 
-export function gmNextTurn(state: GameState) {
-  TurnManager.nextTurn(state);
+/* =========================
+   GM Direct Actions
+   (called programmatically by GM)
+   ========================= */
 
-  state.logs.push({
-    time: Date.now(),
-    source: "GM",
-    message: "forces next turn"
-  });
+export function gmSetPhase(state: GameState, phase: Parameters<typeof setGamePhase>[1]) {
+  setGamePhase(state, phase);
+  addGMNote(state, `GM forces phase → ${phase}`);
+}
+
+export function gmAdvanceTime(state: GameState) {
+  TurnManager.advanceTime(state);
+  addGMNote(state, `GM advances time → Day ${state.world.day} ${state.world.time}`);
 }
 
 export function gmSetActivePlayer(state: GameState, playerId: string) {
-  state.turn.activePlayerId = playerId;
-
-  state.logs.push({
-    time: Date.now(),
-    source: "GM",
-    message: `sets active player to ${playerId}`
-  });
+  state.turnState.activePlayerId = playerId;
+  addGMNote(state, `GM sets active player → ${playerId}`);
 }
 
 /* =========================
-   ACTION CONTROL
-   ========================= */
-
-export function gmApproveAction(
-  state: GameState,
-  playerId: string,
-  action: string,
-  result: string
-) {
-  state.logs.push({
-    time: Date.now(),
-    source: "GM",
-    message: `approves ${playerId}'s action "${action}" → ${result}`
-  });
-}
-
-export function gmRejectAction(
-  state: GameState,
-  playerId: string,
-  action: string,
-  reason: string
-) {
-  state.logs.push({
-    time: Date.now(),
-    source: "GM",
-    message: `rejects ${playerId}'s action "${action}" (${reason})`
-  });
-}
-
-/* =========================
-   PUNISH / BLESS
+   Player Manipulation
    ========================= */
 
 export function gmDamagePlayer(
@@ -79,13 +68,10 @@ export function gmDamagePlayer(
   const player = state.players.find(p => p.id === playerId);
   if (!player) return;
 
-  player.hp = Math.max(0, player.hp - amount);
+  player.status.hp = Math.max(0, player.status.hp - amount);
+  if (player.status.hp <= 0) player.alive = false;
 
-  state.logs.push({
-    time: Date.now(),
-    source: "GM",
-    message: `${player.name} takes ${amount} damage${reason ? ` (${reason})` : ""}`
-  });
+  addGMNote(state, `${player.name} takes ${amount} damage${reason ? ` (${reason})` : ""}`);
 }
 
 export function gmHealPlayer(
@@ -95,84 +81,41 @@ export function gmHealPlayer(
   reason?: string
 ) {
   const player = state.players.find(p => p.id === playerId);
-  if (!player) return;
+  if (!player || !player.alive) return;
 
-  player.hp = Math.min(player.maxHp, player.hp + amount);
+  player.status.hp = Math.min(player.status.maxHp, player.status.hp + amount);
 
-  state.logs.push({
-    time: Date.now(),
-    source: "GM",
-    message: `${player.name} heals ${amount} HP${reason ? ` (${reason})` : ""}`
-  });
+  addGMNote(state, `${player.name} heals ${amount} HP${reason ? ` (${reason})` : ""}`);
 }
 
-export function gmModifyInfection(
+export function gmInfectPlayer(
   state: GameState,
   playerId: string,
-  delta: number,
+  stage: number = 1,
   reason?: string
 ) {
+  InfectionEngine.infectPlayer(state, playerId, stage);
+
   const player = state.players.find(p => p.id === playerId);
-  if (!player) return;
-
-  player.infectionStage += delta;
-
-  state.logs.push({
-    time: Date.now(),
-    source: "GM",
-    message: `${player.name}'s infection ${delta > 0 ? "increases" : "decreases"} by ${Math.abs(delta)}${reason ? ` (${reason})` : ""}`
-  });
+  addGMNote(state, `${player?.name ?? playerId} infected at stage ${stage}${reason ? ` (${reason})` : ""}`);
 }
 
-export function gmAddStatus(
-  state: GameState,
-  playerId: string,
-  status: string
-) {
+export function gmRestrainPlayer(state: GameState, playerId: string) {
+  InfectionEngine.restrainInfection(state, playerId);
+
   const player = state.players.find(p => p.id === playerId);
-  if (!player) return;
-
-  if (!player.status.includes(status)) {
-    player.status.push(status);
-  }
-
-  state.logs.push({
-    time: Date.now(),
-    source: "GM",
-    message: `${player.name} gains status: ${status}`
-  });
-}
-
-export function gmRemoveStatus(
-  state: GameState,
-  playerId: string,
-  status: string
-) {
-  const player = state.players.find(p => p.id === playerId);
-  if (!player) return;
-
-  player.status = player.status.filter(s => s !== status);
-
-  state.logs.push({
-    time: Date.now(),
-    source: "GM",
-    message: `${player.name} loses status: ${status}`
-  });
+  addGMNote(state, `${player?.name ?? playerId} infection restrained`);
 }
 
 /* =========================
-   STORY / ENDING CONTROL
+   Ending Control
    ========================= */
 
 export function gmFlagEnding(
   state: GameState,
-  endingKey: string
+  type: "ERADICATION" | "ESCAPE" | "EXTINCTION",
+  description: string
 ) {
-  state.flags[endingKey] = true;
-
-  state.logs.push({
-    time: Date.now(),
-    source: "GM",
-    message: `flags ending condition: ${endingKey}`
-  });
+  triggerEnding(state, type, description);
+  addGMNote(state, `GM triggers ending: ${type}`);
 }
