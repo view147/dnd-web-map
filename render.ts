@@ -1,5 +1,5 @@
 // render.ts
-import { GameState } from "../engine/game_state";
+import { GameState } from "./engine/game_state";
 
 let root: HTMLElement | null = null;
 
@@ -17,15 +17,15 @@ export function initRender(rootId: string = "app") {
 export function render(state: GameState) {
   if (!root) throw new Error("Render not initialized");
 
-  // --- DEBUG (ยังเก็บไว้ได้) ---
+  // --- DEBUG ---
   console.clear();
-  console.log("PHASE:", state.turn.phase);
-  console.log("TURN:", state.turn.currentTurn);
+  console.log("PHASE:", state.phase);
+  console.log("TURN:", state.turnState.turn);
   console.log("LOCATION:", state.world.locationId);
 
   // --- UI ---
   root.innerHTML = `
-    <div style="font-family: monospace; padding: 12px;">
+    <div style="font-family: monospace; padding: 12px; background:#0a0a0a; color:#ccc; min-height:100vh;">
       
       ${renderHeader(state)}
 
@@ -45,11 +45,24 @@ export function render(state: GameState) {
 /* ===================== SUB UI ===================== */
 
 function renderHeader(state: GameState): string {
+  const endingBanner = state.ending.triggered
+    ? `<div style="background:#600; padding:8px; margin-top:8px;">
+        🏁 ENDING: ${state.ending.type} — ${state.ending.description}
+       </div>`
+    : "";
+
   return `
     <div style="border-bottom:1px solid #444; padding-bottom:8px;">
-      <strong>TURN</strong>: ${state.turn.currentTurn}
+      <strong>THE FLOOD</strong>
       &nbsp;|&nbsp;
-      <strong>PHASE</strong>: ${state.turn.phase}
+      <strong>TURN</strong>: ${state.turnState.turn}
+      &nbsp;|&nbsp;
+      <strong>PHASE</strong>: ${state.phase}
+      &nbsp;|&nbsp;
+      <strong>DAY</strong>: ${state.world.day} (${state.world.time})
+      &nbsp;|&nbsp;
+      <strong>WORLD INFECTION</strong>: ${state.world.globalInfectionLevel}
+      ${endingBanner}
     </div>
   `;
 }
@@ -58,18 +71,30 @@ function renderPlayers(state: GameState): string {
   return `
     <div style="width:40%;">
       <h3>PLAYERS</h3>
-      ${state.players.map(p => `
-        <div style="
-          border:1px solid #333;
-          padding:6px;
-          margin-bottom:6px;
-        ">
-          <strong>${p.name}</strong><br/>
-          HP: ${p.hp}/${p.maxHp}<br/>
-          Infection: ${p.infectionStage}<br/>
-          Status: ${p.status.join(", ") || "Normal"}
-        </div>
-      `).join("")}
+      ${state.players.map(p => {
+        const infected = p.status.infected;
+        const stage = p.status.infectionStage;
+        const restrained = p.status.restrained;
+        const borderColor = !p.alive ? "#600" : infected ? "#960" : "#333";
+
+        return `
+          <div style="
+            border:1px solid ${borderColor};
+            padding:6px;
+            margin-bottom:6px;
+            opacity:${p.alive ? 1 : 0.5};
+          ">
+            <strong>${p.name}</strong>
+            ${!p.alive ? " <span style='color:#f00'>[DEAD]</span>" : ""}
+            <br/>
+            Role: ${p.role}<br/>
+            HP: ${p.status.hp} / ${p.status.maxHp}<br/>
+            Stamina: ${p.status.stamina} / ${p.status.maxStamina}<br/>
+            Infected: ${infected ? `<span style="color:#f80">YES (Stage ${stage})</span>` : "No"}<br/>
+            Restrained: ${restrained ? "<span style='color:#fa0'>YES</span>" : "No"}
+          </div>
+        `;
+      }).join("")}
     </div>
   `;
 }
@@ -79,15 +104,19 @@ function renderWorld(state: GameState): string {
     <div style="width:60%;">
       <h3>WORLD</h3>
       <div style="border:1px solid #333; padding:6px;">
+        <strong>Map:</strong> ${state.world.mapId}<br/>
         <strong>Location:</strong> ${state.world.locationId}<br/>
-        <strong>Danger Level:</strong> ${state.world.dangerLevel}<br/>
-        <strong>Time:</strong> ${state.world.time}
+        <strong>Day:</strong> ${state.world.day}<br/>
+        <strong>Time:</strong> ${state.world.time}<br/>
+        <strong>Global Infection:</strong> ${state.world.globalInfectionLevel}
       </div>
     </div>
   `;
 }
 
 function renderLogs(state: GameState): string {
+  const logs = state.gmNotes.slice(-20).reverse();
+
   return `
     <h3>LOGS</h3>
     <div style="
@@ -98,13 +127,10 @@ function renderLogs(state: GameState): string {
       background:#111;
       color:#0f0;
     ">
-      ${state.logs.slice(-20).map(log => `
-        <div>
-          [${new Date(log.time).toLocaleTimeString()}]
-          <strong>${log.source}</strong>:
-          ${log.message}
-        </div>
-      `).join("")}
+      ${logs.length === 0
+        ? "<div style='color:#555'>No logs yet.</div>"
+        : logs.map(msg => `<div>▸ ${msg}</div>`).join("")
+      }
     </div>
   `;
 }
