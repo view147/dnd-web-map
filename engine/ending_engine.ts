@@ -1,132 +1,74 @@
-// engine/world_engine.ts
+// ============================================================
+// Ending Engine
+// ------------------------------------------------------------
+// - ตรวจสอบเงื่อนไขจบเกม
+// - ไม่ตัดสินใจแทน GM
+// - GM เป็นคนกด trigger จริง
+// ============================================================
 
-import { EventEngine } from "./event_engine"
-import { CombatEngine } from "./combat_engine"
+import { GameState, getAlivePlayers } from "./game_state";
 
-/* ================================
-   Types
-================================ */
+export type EndingType = "ERADICATION" | "ESCAPE" | "EXTINCTION";
 
-export type Position = {
-  x: number
-  y: number
-  zone: string
+export interface EndingCheckResult {
+  type: EndingType;
+  description: string;
 }
 
-export type WorldEntity = {
-  id: string
-  type: "npc" | "monster" | "object"
-  position: Position
-  data?: any
-}
+export class EndingEngine {
+  /* ---------------------------------------------------------
+     Check Ending Conditions
+     (GM ใช้ตรวจสอบ — ไม่ได้ trigger เอง)
+     --------------------------------------------------------- */
 
-export type WorldState = {
-  playerPosition: Position
-  entities: WorldEntity[]
-  discoveredZones: string[]
-}
-
-/* ================================
-   World Engine
-================================ */
-
-export class WorldEngine {
-  private state: WorldState
-  private eventEngine: EventEngine
-  private combatEngine: CombatEngine
-
-  constructor(
-    initialState: WorldState,
-    eventEngine: EventEngine,
-    combatEngine: CombatEngine
-  ) {
-    this.state = initialState
-    this.eventEngine = eventEngine
-    this.combatEngine = combatEngine
-  }
-
-  /* ================================
-     Getters
-  ================================ */
-
-  getState(): WorldState {
-    return structuredClone(this.state)
-  }
-
-  getPlayerPosition(): Position {
-    return { ...this.state.playerPosition }
-  }
-
-  /* ================================
-     Movement
-  ================================ */
-
-  movePlayer(dx: number, dy: number) {
-    const pos = this.state.playerPosition
-
-    const newPos: Position = {
-      ...pos,
-      x: pos.x + dx,
-      y: pos.y + dy,
+  static checkEnding(state: GameState): EndingCheckResult | null {
+    // ผู้เล่นทุกคนตายหมด
+    const alive = getAlivePlayers(state);
+    if (alive.length === 0) {
+      return {
+        type: "EXTINCTION",
+        description: "ผู้รอดชีวิตทุกคนสูญเสียชีวิต โลกพ่ายแพ้ต่อ The Flood",
+      };
     }
 
-    this.state.playerPosition = newPos
-
-    this.checkWorldInteraction()
-  }
-
-  teleport(position: Position) {
-    this.state.playerPosition = position
-    this.checkWorldInteraction()
-  }
-
-  /* ================================
-     World Interaction
-  ================================ */
-
-  private checkWorldInteraction() {
-    const playerPos = this.state.playerPosition
-
-    const entitiesHere = this.state.entities.filter(e =>
-      e.position.zone === playerPos.zone &&
-      e.position.x === playerPos.x &&
-      e.position.y === playerPos.y
-    )
-
-    for (const entity of entitiesHere) {
-      this.handleEntityInteraction(entity)
+    // โลกติดเชื้อเต็มขั้น
+    if (state.world.globalInfectionLevel >= 100) {
+      return {
+        type: "EXTINCTION",
+        description: "The Flood แพร่กระจายเต็มโลก ไม่เหลือพื้นที่ปลอดภัย",
+      };
     }
-  }
 
-  private handleEntityInteraction(entity: WorldEntity) {
-    switch (entity.type) {
-      case "monster":
-        this.combatEngine.startCombat(entity)
-        break
-
-      case "npc":
-        this.eventEngine.triggerEvent("talk", {
-          npcId: entity.id
-        })
-        break
-
-      case "object":
-        this.eventEngine.triggerEvent("inspect", {
-          objectId: entity.id
-        })
-        break
+    // ผู้เล่นกำจัดเชื้อได้
+    if (state.world.flags["flood_eradicated"]) {
+      return {
+        type: "ERADICATION",
+        description:
+          "The Flood ถูกกำจัด — แต่แลกมาด้วยราคาที่โลกต้องจ่าย",
+      };
     }
+
+    // ผู้เล่นขึ้นยานหนีได้
+    if (state.world.flags["escape_ship_launched"]) {
+      return {
+        type: "ESCAPE",
+        description:
+          "ยานอพยพออกเดินทางแล้ว — บางคนรอด บางคนไม่ได้ไป",
+      };
+    }
+
+    return null; // ยังไม่ถึงจุดจบ
   }
 
-  /* ================================
-     World Management
-  ================================ */
+  /* ---------------------------------------------------------
+     Helpers (GM ใช้ set flag ก่อน trigger)
+     --------------------------------------------------------- */
 
-  addEntity(entity: WorldEntity) {
-    this.state.entities.push(entity)
+  static markFloodEradicated(state: GameState) {
+    state.world.flags["flood_eradicated"] = true;
   }
 
-  removeEntity(entityId: string) {
-    this.state.entities = this.state.entities.filter(e => e.id !== entityId)
+  static markShipLaunched(state: GameState) {
+    state.world.flags["escape_ship_launched"] = true;
   }
 }
