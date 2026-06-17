@@ -68,7 +68,7 @@ document.getElementById("btn-gm-logout")?.addEventListener("click", async () => 
 // Boot (หลัง GM login)
 // ============================================================
 
-async function boot() {
+export async function boot() {
   initRender("app");
 
   // โหลด state จาก Firestore ถ้ามี ถ้าไม่มีสร้างใหม่
