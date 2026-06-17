@@ -5,263 +5,260 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>THE FLOOD</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      background: #0a0a0a;
+      background: #060606;
       color: #ccc;
-      font-family: 'Courier New', monospace;
+      font-family: 'Share Tech Mono', 'Courier New', monospace;
       min-height: 100vh;
-    }
-
-    /* ── Header ── */
-    #header {
-      background: #111;
-      border-bottom: 1px solid #333;
-      padding: 10px 16px;
       display: flex;
-      align-items: center;
-      gap: 20px;
-    }
-    #header h1 { color: #f00; font-size: 18px; letter-spacing: 4px; }
-    .stat { color: #888; font-size: 13px; }
-    .stat span { color: #eee; }
-
-    /* ── Layout ── */
-    #layout {
-      display: grid;
-      grid-template-columns: 260px 1fr 220px;
-      grid-template-rows: 1fr 180px;
-      gap: 1px;
-      background: #222;
-      height: calc(100vh - 45px);
+      flex-direction: column;
     }
 
-    /* ── Panels ── */
-    .panel {
-      background: #0e0e0e;
-      padding: 12px;
-      overflow-y: auto;
-    }
-    .panel h2 {
-      font-size: 11px;
-      letter-spacing: 2px;
-      color: #555;
-      border-bottom: 1px solid #222;
-      padding-bottom: 6px;
-      margin-bottom: 10px;
+    /* ── Scanline overlay ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.08) 2px,
+        rgba(0,0,0,0.08) 4px
+      );
+      pointer-events: none; z-index: 999;
     }
 
-    /* ── Players Panel ── */
-    #panel-players { grid-row: 1; grid-column: 1; }
+    /* ── Hero ── */
+    #hero {
+      flex: 1;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 60px 20px 40px;
+      text-align: center;
+      position: relative;
+    }
 
-    .player-card {
-      border: 1px solid #2a2a2a;
-      padding: 8px;
+    .virus-ring {
+      position: absolute;
+      width: 400px; height: 400px;
+      border-radius: 50%;
+      border: 1px solid #1a0000;
+      box-shadow: 0 0 60px rgba(180,0,0,0.06);
+      animation: pulse 4s ease-in-out infinite;
+    }
+    .virus-ring:nth-child(2) { width: 600px; height: 600px; animation-delay: 1s; }
+    .virus-ring:nth-child(3) { width: 800px; height: 800px; animation-delay: 2s; }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 0.8; }
+    }
+
+    .hero-content { position: relative; z-index: 1; }
+
+    .title-tag { font-size: 10px; letter-spacing: 6px; color: #400; margin-bottom: 16px; }
+
+    h1 {
+      font-size: clamp(48px, 10vw, 90px);
+      color: #c00;
+      letter-spacing: 16px;
+      text-shadow: 0 0 40px rgba(200,0,0,0.4);
       margin-bottom: 8px;
-      border-radius: 2px;
+      line-height: 1;
     }
-    .player-card.infected { border-color: #6a3000; }
-    .player-card.dead { opacity: 0.4; border-color: #400; }
-    .player-name { font-size: 13px; color: #fff; margin-bottom: 4px; }
-    .player-role { font-size: 11px; color: #666; margin-bottom: 6px; }
 
-    .bar-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
-    .bar-label { font-size: 10px; color: #555; width: 14px; }
-    .bar-bg { flex: 1; height: 6px; background: #1a1a1a; border-radius: 2px; }
-    .bar-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
-    .bar-hp .bar-fill { background: #4a4; }
-    .bar-st .bar-fill { background: #44a; }
-    .bar-in .bar-fill { background: #a40; }
-    .bar-val { font-size: 10px; color: #555; width: 30px; text-align: right; }
-
-    .tag {
-      display: inline-block;
-      font-size: 9px;
-      padding: 1px 5px;
-      border-radius: 2px;
-      margin-top: 4px;
-      margin-right: 3px;
-    }
-    .tag-infected { background: #6a2000; color: #f84; }
-    .tag-restrained { background: #3a3000; color: #fa4; }
-    .tag-dead { background: #400; color: #f44; }
-
-    /* ── World Panel ── */
-    #panel-world { grid-row: 1; grid-column: 2; }
-
-    #world-info {
-      border: 1px solid #222;
-      padding: 10px;
-      margin-bottom: 12px;
-      font-size: 12px;
+    .tagline {
+      font-size: 13px;
+      color: #444;
+      letter-spacing: 3px;
+      margin-bottom: 48px;
       line-height: 1.8;
     }
-    #world-info .label { color: #555; }
-    #world-info .value { color: #ccc; }
+    .tagline em { color: #666; font-style: normal; }
 
-    #infection-bar-global {
-      margin-bottom: 12px;
-    }
-    #infection-bar-global .label {
-      font-size: 11px;
-      color: #555;
-      margin-bottom: 4px;
-    }
-    #infection-bar-global .bar-bg {
-      height: 10px;
-      background: #1a1a1a;
-      border-radius: 2px;
-    }
-    #infection-bar-global .bar-fill {
-      height: 100%;
-      background: linear-gradient(to right, #a40, #f00);
-      border-radius: 2px;
-      transition: width 0.5s;
-    }
+    /* ── Buttons ── */
+    .btn-group { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 48px; }
 
-    #ending-banner {
-      display: none;
-      background: #500;
-      border: 1px solid #f00;
-      padding: 10px;
-      text-align: center;
-      font-size: 14px;
-      color: #f88;
-      letter-spacing: 2px;
-      margin-bottom: 12px;
+    .btn {
+      padding: 12px 32px;
+      font-family: inherit; font-size: 12px;
+      letter-spacing: 3px; cursor: pointer;
+      border: 1px solid; text-decoration: none;
+      display: inline-block; transition: all .2s;
     }
+    .btn-enter {
+      background: #1a0000; border-color: #800; color: #f44;
+      box-shadow: 0 0 20px rgba(200,0,0,0.15);
+    }
+    .btn-enter:hover {
+      background: #2a0000; border-color: #f00; color: #f88;
+      box-shadow: 0 0 30px rgba(200,0,0,0.3);
+    }
+    .btn-gm {
+      background: transparent; border-color: #2a2a2a; color: #444;
+    }
+    .btn-gm:hover { border-color: #555; color: #888; }
 
-    /* ── GM Panel ── */
-    #panel-gm { grid-row: 1; grid-column: 3; }
+    /* ── Status Bar ── */
+    #status-bar {
+      display: flex; justify-content: center; gap: 32px;
+      padding: 12px 20px; border-top: 1px solid #111;
+      font-size: 10px; color: #333;
+    }
+    .sitem span { color: #666; }
+    .sitem.online span { color: #4a4; }
+    .sitem.warning span { color: #a84; }
+    .sitem.danger span { color: #f44; }
 
-    .gm-section { margin-bottom: 12px; }
-    .gm-section label { font-size: 10px; color: #555; display: block; margin-bottom: 4px; }
-
-    select, input[type="number"] {
-      width: 100%;
-      background: #1a1a1a;
-      border: 1px solid #333;
-      color: #ccc;
-      padding: 5px;
-      font-family: monospace;
-      font-size: 11px;
-      margin-bottom: 6px;
+    /* ── News Section ── */
+    #news {
+      background: #0a0a0a; border-top: 1px solid #111;
+      padding: 32px 20px; max-width: 700px; margin: 0 auto; width: 100%;
+    }
+    #news h2 {
+      font-size: 10px; letter-spacing: 4px; color: #333;
+      margin-bottom: 20px; border-bottom: 1px solid #111; padding-bottom: 8px;
     }
 
-    button {
-      width: 100%;
-      padding: 6px;
-      font-family: monospace;
-      font-size: 11px;
-      cursor: pointer;
-      border: 1px solid #444;
-      background: #1a1a1a;
-      color: #ccc;
-      margin-bottom: 4px;
-      transition: background 0.2s;
+    .news-item {
+      padding: 14px 0; border-bottom: 1px solid #0f0f0f;
     }
-    button:hover { background: #2a2a2a; }
-    button.primary { border-color: #a00; color: #f88; }
-    button.primary:hover { background: #2a0000; }
-    button.safe { border-color: #0a4; color: #4f8; }
-    button.safe:hover { background: #001a00; }
+    .news-item:last-child { border-bottom: none; }
+    .news-date { font-size: 9px; color: #333; margin-bottom: 4px; }
+    .news-tag {
+      display: inline-block; font-size: 8px; padding: 1px 5px;
+      border-radius: 1px; margin-right: 6px; vertical-align: middle;
+    }
+    .tag-system { background: #001a2a; color: #46a; }
+    .tag-story { background: #1a0000; color: #a44; }
+    .tag-update { background: #0a1a00; color: #464; }
+    .news-title { font-size: 12px; color: #888; margin-bottom: 4px; }
+    .news-body { font-size: 11px; color: #444; line-height: 1.8; }
 
-    /* ── Log Panel ── */
-    #panel-log { grid-row: 2; grid-column: 1 / 4; border-top: 1px solid #222; }
-    #panel-log h2 { display: inline-block; margin-right: 10px; }
-
-    #log-entries {
-      display: flex;
-      flex-direction: column-reverse;
-      gap: 2px;
-      max-height: 120px;
-      overflow-y: auto;
+    /* ── Footer ── */
+    footer {
+      text-align: center; padding: 16px;
+      font-size: 9px; color: #222; border-top: 1px solid #0f0f0f;
     }
-    .log-entry {
-      font-size: 11px;
-      color: #4a4;
-      padding: 1px 0;
-    }
-    .log-entry.system { color: #555; }
-    .log-entry.warning { color: #a84; }
-    .log-entry.danger { color: #f44; }
   </style>
 </head>
 <body>
 
-<!-- Header -->
-<div id="header">
-  <h1>THE FLOOD</h1>
-  <div class="stat">TURN <span id="hdr-turn">1</span></div>
-  <div class="stat">DAY <span id="hdr-day">1</span></div>
-  <div class="stat">TIME <span id="hdr-time">MORNING</span></div>
-  <div class="stat">PHASE <span id="hdr-phase">INIT</span></div>
+<!-- Hero -->
+<div id="hero">
+  <div class="virus-ring"></div>
+  <div class="virus-ring"></div>
+  <div class="virus-ring"></div>
+
+  <div class="hero-content">
+    <div class="title-tag">SURVIVAL · TURN-BASED · CO-OP</div>
+    <h1>THE FLOOD</h1>
+    <div class="tagline">
+      ไม่มีทางรักษา<br/>
+      <em>มีแค่ทางเลือก</em>
+    </div>
+
+    <div class="btn-group">
+      <a href="player.html" class="btn btn-enter">เข้าสู่เกม</a>
+      <a href="gm.html" class="btn btn-gm">GM</a>
+    </div>
+  </div>
 </div>
 
-<!-- Main Layout -->
-<div id="layout">
-
-  <!-- Players -->
-  <div class="panel" id="panel-players">
-    <h2>PLAYERS</h2>
-    <div id="player-list"><!-- render.ts fills this --></div>
+<!-- Status Bar -->
+<div id="status-bar">
+  <div class="sitem" id="stat-season">
+    SEASON &nbsp;<span>1</span>
   </div>
-
-  <!-- World -->
-  <div class="panel" id="panel-world">
-    <h2>WORLD</h2>
-    <div id="ending-banner">🏁 ENDING: <span id="ending-type"></span></div>
-    <div id="infection-bar-global">
-      <div class="label">GLOBAL INFECTION <span id="infection-val">0</span>%</div>
-      <div class="bar-bg"><div class="bar-fill" id="infection-fill" style="width:0%"></div></div>
-    </div>
-    <div id="world-info">
-      <div><span class="label">MAP &nbsp;&nbsp;&nbsp;</span> <span class="value" id="w-map">—</span></div>
-      <div><span class="label">ZONE &nbsp;&nbsp;</span> <span class="value" id="w-loc">—</span></div>
-    </div>
+  <div class="sitem online" id="stat-server">
+    SERVER &nbsp;<span>ONLINE</span>
   </div>
-
-  <!-- GM Panel -->
-  <div class="panel" id="panel-gm">
-    <h2>GM TOOLS</h2>
-
-    <div class="gm-section">
-      <label>TARGET PLAYER</label>
-      <select id="select-source"></select>
-    </div>
-
-    <div class="gm-section">
-      <label>DAMAGE</label>
-      <input type="number" id="input-damage" value="10" min="1" max="999" />
-      <button id="btn-attack" class="primary">⚔ DEAL DAMAGE</button>
-    </div>
-
-    <div class="gm-section">
-      <label>HEAL</label>
-      <input type="number" id="input-heal" value="20" min="1" max="999" />
-      <button id="btn-heal" class="safe">💊 HEAL PLAYER</button>
-    </div>
-
-    <div class="gm-section">
-      <button id="btn-infect">☣ INFECT PLAYER</button>
-      <button id="btn-restrain">🩹 RESTRAIN INFECTION</button>
-    </div>
-
-    <div class="gm-section">
-      <button id="btn-end-turn">⏭ NEXT TURN</button>
-      <button id="btn-check-ending" class="primary">🏁 CHECK ENDING</button>
-    </div>
+  <div class="sitem" id="stat-players">
+    PLAYERS &nbsp;<span id="player-count">—</span>
   </div>
-
-  <!-- Log -->
-  <div class="panel" id="panel-log">
-    <h2>LOG</h2>
-    <div id="log-entries"><!-- render.ts fills this --></div>
+  <div class="sitem warning" id="stat-infection">
+    GLOBAL INFECTION &nbsp;<span id="infection-level">—</span>
   </div>
-
 </div>
 
-<script type="module" src="./index.ts"></script>
+<!-- News -->
+<div id="news">
+  <h2>TRANSMISSIONS — ข่าวสาร</h2>
+  <div id="news-list">
+    <!-- โหลดจาก Firestore -->
+    <div class="news-item">
+      <div class="news-date">—</div>
+      <div class="news-body" style="color:#222">กำลังโหลดข้อมูล...</div>
+    </div>
+  </div>
+</div>
+
+<footer>THE FLOOD — SEASON 1 &nbsp;|&nbsp; GM-DRIVEN SURVIVAL</footer>
+
+<script type="module">
+import { db } from "./firebase.ts";
+import { doc, onSnapshot, collection, query, orderBy, limit } from "firebase/firestore";
+
+// ── Live game status ──────────────────────────────────────
+
+onSnapshot(doc(db, "games/session_1"), (snap) => {
+  if (!snap.exists()) return;
+  try {
+    const state = JSON.parse(snap.data().state);
+
+    // player count
+    const alive = state.players?.filter(p => p.alive).length ?? "—";
+    document.getElementById("player-count").textContent = alive + " alive";
+
+    // infection
+    const inf = state.world?.globalInfectionLevel ?? "—";
+    const infEl = document.getElementById("infection-level");
+    infEl.textContent = inf + "%";
+    const statInf = document.getElementById("stat-infection");
+    if (inf >= 70) statInf.className = "sitem danger";
+    else if (inf >= 40) statInf.className = "sitem warning";
+    else statInf.className = "sitem";
+
+  } catch {}
+});
+
+// ── News ─────────────────────────────────────────────────
+
+onSnapshot(
+  query(collection(db, "news"), orderBy("createdAt", "desc"), limit(10)),
+  (snap) => {
+    const list = document.getElementById("news-list");
+
+    if (snap.empty) {
+      list.innerHTML = `
+        <div class="news-item">
+          <div class="news-body" style="color:#2a2a2a">ยังไม่มีข้อมูล — GM จะอัพเดทที่นี่</div>
+        </div>`;
+      return;
+    }
+
+    list.innerHTML = snap.docs.map(d => {
+      const n = d.data();
+      const date = n.createdAt
+        ? new Date(n.createdAt).toLocaleDateString("th-TH")
+        : "—";
+      const tagClass = n.tag === "story" ? "tag-story" : n.tag === "update" ? "tag-update" : "tag-system";
+      return `
+        <div class="news-item">
+          <div class="news-date">${date}</div>
+          <div class="news-title">
+            <span class="news-tag ${tagClass}">${(n.tag ?? "system").toUpperCase()}</span>
+            ${n.title ?? ""}
+          </div>
+          <div class="news-body">${n.body ?? ""}</div>
+        </div>`;
+    }).join("");
+  }
+);
+</script>
+
 </body>
 </html>
