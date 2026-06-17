@@ -231,22 +231,6 @@
 </div>
 
 <div id="app" style="display:none"></div>
-<script type="module" src="./index.ts"></script>
+<script type="module" src="./gm_login.ts"></script>
 </body>
 </html>
-<script type="module">
-import { collection, addDoc } from "firebase/firestore";
-import { db } from "./firebase.ts";
-
-document.getElementById("btn-post-news")?.addEventListener("click", async () => {
-  const title = document.getElementById("news-title").value.trim();
-  const body = document.getElementById("news-body").value.trim();
-  const tag = document.getElementById("news-tag").value;
-  if (!title && !body) return;
-  await addDoc(collection(db, "news"), {
-    title, body, tag, createdAt: Date.now()
-  });
-  document.getElementById("news-title").value = "";
-  document.getElementById("news-body").value = "";
-});
-</script>
