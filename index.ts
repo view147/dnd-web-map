@@ -1,147 +1,158 @@
-// index.ts
-// Bind Engine ↔ UI ↔ GM
-// This file is the ONLY place that knows everything.
+// index.ts (GM version)
+// ============================================================
+// GM login → โหลด/บันทึก state จาก Firestore
+// ทุกครั้งที่ GM กด action → saveGameState → ผู้เล่นเห็นทันที
+// ============================================================
 
-import { GameState, createInitialGameState } from "./engine/game_state";
+import {
+  GameState,
+  createInitialGameState,
+  setGamePhase,
+  setTurnOwner,
+  addGMNote,
+} from "./engine/game_state";
+
 import { TurnManager } from "./engine/turn_manager";
-import { CombatEngine } from "./engine/combat_engine";
-import { InfectionEngine } from "./engine/infection_engine";
-import { EventEngine } from "./engine/event_engine";
-import { WorldEngine } from "./engine/world_engine";
-import { EndingEngine } from "./engine/ending_engine";
+import { CombatEngine, CombatAction } from "./engine/combat_engine";
+import { ContentLoader, SeasonContent } from "./engine/content_loader";
 
-import { renderGame } from "./render";
+import { render, initRender } from "./render";
 import { bindControls } from "./controls";
-import { bindGMPanel } from "./gm_panel";
+import { bindGMPanel, populateEventSelect, populatePlayerSelect } from "./gm_panel";
+import { login, logout, onAuthChanged } from "./auth";
+import { saveGameState, loadGameState } from "./db";
 
-// ==============================
-// GLOBAL SINGLETON (runtime only)
-// ==============================
+// ============================================================
+// State
+// ============================================================
 
 let gameState: GameState;
-let turnManager: TurnManager;
+let seasonContent: SeasonContent | null = null;
 
-// ==============================
-// BOOTSTRAP
-// ==============================
+// ============================================================
+// Auth Gate
+// ============================================================
 
-function boot() {
-  console.log("[BOOT] The Flood starting...");
+onAuthChanged(async (user, profile) => {
+  if (!user || !profile) {
+    showLogin();
+    return;
+  }
+  if (profile.role !== "gm") {
+    document.getElementById("login-error")!.textContent =
+      "account นี้ไม่ใช่ GM — กรุณาเปิด player.html แทน";
+    await logout();
+    return;
+  }
+  showGM();
+  await boot();
+});
 
-  // 1️⃣ Load content (season)
-  const seasonId = "season_1";
+document.getElementById("btn-gm-login")?.addEventListener("click", async () => {
+  const email = (document.getElementById("gm-email") as HTMLInputElement).value.trim();
+  const pw = (document.getElementById("gm-password") as HTMLInputElement).value;
+  const err = document.getElementById("login-error")!;
+  err.textContent = "";
+  try {
+    await login(email, pw);
+  } catch (e: any) {
+    err.textContent = "Login ไม่สำเร็จ: " + (e.message ?? "ลองใหม่");
+  }
+});
 
-  // 2️⃣ Create initial game state
-  gameState = createInitialGameState(seasonId);
+document.getElementById("btn-gm-logout")?.addEventListener("click", async () => {
+  await logout();
+});
 
-  // 3️⃣ Create engines
-  const combatEngine = new CombatEngine();
-  const infectionEngine = new InfectionEngine();
-  const eventEngine = new EventEngine();
-  const worldEngine = new WorldEngine();
-  const endingEngine = new EndingEngine();
+// ============================================================
+// Boot (หลัง GM login)
+// ============================================================
 
-  // 4️⃣ Create turn manager
-  turnManager = new TurnManager({
-    combatEngine,
-    infectionEngine,
-    eventEngine,
-    worldEngine,
-    endingEngine,
-  });
+async function boot() {
+  initRender("app");
 
-  // 5️⃣ Bind UI
-  bindControls({
-    onPlayerAction,
-    onEndTurn,
-  });
+  // โหลด state จาก Firestore ถ้ามี ถ้าไม่มีสร้างใหม่
+  const saved = await loadGameState();
+  if (saved) {
+    gameState = saved;
+    addGMNote(gameState, "✅ โหลด session จาก Firestore สำเร็จ");
+  } else {
+    gameState = createInitialGameState(
+      "game_" + Date.now(),
+      "season_1",
+      [
+        { id: "p1", name: "Dr. Lin", role: "Medic" },
+        { id: "p2", name: "Kael", role: "Soldier" },
+        { id: "p3", name: "Echo", role: "Engineer" },
+      ],
+      "abandoned_city",
+      "entrance"
+    );
+    setGamePhase(gameState, "EXPLORATION");
+    setTurnOwner(gameState, "PLAYER");
+    addGMNote(gameState, "🆕 เริ่ม session ใหม่");
+  }
 
+  // โหลด content
+  try {
+    seasonContent = await ContentLoader.loadSeason("season_1");
+    ContentLoader.applySeasonToState(gameState, seasonContent);
+  } catch {
+    addGMNote(gameState, "⚠️ โหลด content ไม่ได้ — รันแบบ standalone");
+  }
+
+  // Bind
   bindGMPanel({
-    onGMEvent,
-    onForceEnd,
+    getState: () => gameState,
+    getContent: () => seasonContent,
+    onStateChanged: async () => {
+      await saveGameState(gameState); // บันทึกทันที → ผู้เล่นเห็นพร้อมกัน
+      renderAll();
+    },
   });
 
-  // 6️⃣ Start first turn
-  startNewTurn();
+  bindControls({
+    onPlayerAction: async (action: CombatAction) => {
+      if (gameState.phase !== "COMBAT") return;
+      const result = CombatEngine.resolveAction(gameState, action);
+      addGMNote(gameState, result.message);
+      await saveGameState(gameState);
+      renderAll();
+    },
+    onEndTurn: async () => {
+      TurnManager.startNewTurn(gameState);
+      TurnManager.advanceTime(gameState);
+      addGMNote(gameState, `--- TURN ${gameState.turnState.turn} | Day ${gameState.world.day} ${gameState.world.time} ---`);
+      await saveGameState(gameState);
+      renderAll();
+    },
+  });
+
+  addGMNote(gameState, `--- TURN ${gameState.turnState.turn} START ---`);
+  await saveGameState(gameState);
+  renderAll();
 }
 
-// ==============================
-// TURN FLOW
-// ==============================
+// ============================================================
+// Render
+// ============================================================
 
-function startNewTurn() {
-  turnManager.startTurn(gameState);
-
-  log(`--- TURN ${gameState.turn} START ---`);
-  render();
+function renderAll() {
+  render(gameState);
+  populatePlayerSelect(gameState);
+  if (seasonContent) populateEventSelect(seasonContent, gameState);
 }
 
-function onPlayerAction(action: any) {
-  if (gameState.phase !== "PLAYER") {
-    log("⛔ Not player phase");
-    return;
-  }
+// ============================================================
+// Show/Hide
+// ============================================================
 
-  turnManager.handlePlayerAction(gameState, action);
-
-  render();
+function showLogin() {
+  document.getElementById("gm-login-screen")!.style.display = "flex";
+  document.getElementById("gm-game-screen")!.style.display = "none";
 }
 
-function onEndTurn() {
-  if (gameState.phase !== "PLAYER") return;
-
-  turnManager.endPlayerPhase(gameState);
-  runWorldPhase();
+function showGM() {
+  document.getElementById("gm-login-screen")!.style.display = "none";
+  document.getElementById("gm-game-screen")!.style.display = "block";
 }
-
-function runWorldPhase() {
-  turnManager.runWorldPhase(gameState);
-
-  // GM phase (manual)
-  gameState.phase = "GM";
-  log("🧠 GM Phase: waiting for GM input");
-
-  render();
-}
-
-function onGMEvent(event: any) {
-  if (gameState.phase !== "GM") return;
-
-  turnManager.applyGMEvent(gameState, event);
-
-  render();
-}
-
-function onForceEnd() {
-  if (gameState.phase !== "GM") return;
-
-  turnManager.endTurn(gameState);
-
-  // Check ending
-  if (gameState.ending) {
-    render();
-    log(`🏁 ENDING: ${gameState.ending}`);
-    return;
-  }
-
-  startNewTurn();
-}
-
-// ==============================
-// RENDER + LOG
-// ==============================
-
-function render() {
-  renderGame(gameState);
-}
-
-function log(message: string) {
-  gameState.log.push(message);
-  console.log(message);
-}
-
-// ==============================
-// START GAME
-// ==============================
-
-boot();
