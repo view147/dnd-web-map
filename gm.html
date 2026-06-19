@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>THE FLOOD — GM</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0a0a0a; color: #ccc; font-family: 'Courier New', monospace; height: 100vh; overflow: hidden; }
+
+    /* Login */
+    #gm-login-screen {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; height: 100vh; gap: 10px;
+    }
+    #gm-login-screen h1 { color: #c00; letter-spacing: 6px; font-size: 20px; margin-bottom: 6px; }
+    #gm-login-screen p { color: #444; font-size: 11px; margin-bottom: 10px; }
+    #gm-login-screen input {
+      width: 260px; padding: 7px 10px; background: #111;
+      border: 1px solid #333; color: #ccc; font-family: monospace; font-size: 12px;
+    }
+    #gm-login-screen button {
+      width: 260px; padding: 7px; background: #1a0000;
+      border: 1px solid #600; color: #f66; font-family: monospace;
+      font-size: 12px; cursor: pointer; letter-spacing: 2px;
+    }
+    #gm-login-screen button:hover { background: #2a0000; }
+    #login-error { color: #f44; font-size: 10px; }
+
+    /* Game */
+    #gm-game-screen { display: none; }
+
+    #header {
+      background: #111; border-bottom: 1px solid #2a2a2a;
+      padding: 8px 14px; display: flex; align-items: center; gap: 18px; height: 38px;
+    }
+    #header h1 { color: #c00; font-size: 15px; letter-spacing: 5px; }
+    .hstat { font-size: 11px; color: #555; }
+    .hstat span { color: #ddd; }
+    #btn-gm-logout {
+      margin-left: auto; font-size: 10px; padding: 3px 8px;
+      background: none; border: 1px solid #333; color: #555; cursor: pointer; font-family: monospace;
+    }
+
+    #layout {
+      display: grid;
+      grid-template-columns: 230px 1fr 240px;
+      grid-template-rows: 1fr 160px;
+      gap: 1px; background: #1a1a1a;
+      height: calc(100vh - 38px);
+    }
+
+    .panel { background: #0c0c0c; padding: 10px; overflow-y: auto; }
+    .panel-title { font-size: 9px; letter-spacing: 3px; color: #444; border-bottom: 1px solid #1a1a1a; padding-bottom: 5px; margin-bottom: 8px; }
+
+    /* Players */
+    #panel-players { grid-row: 1; grid-column: 1; }
+    .pcard { border: 1px solid #1e1e1e; padding: 7px; margin-bottom: 6px; }
+    .pcard.infected { border-color: #5a2000; }
+    .pcard.dead { opacity: 0.35; }
+    .pname { font-size: 12px; color: #eee; margin-bottom: 2px; }
+    .prole { font-size: 10px; color: #555; margin-bottom: 5px; }
+    .bar-row { display: flex; align-items: center; gap: 5px; margin-bottom: 2px; }
+    .blabel { font-size: 9px; color: #444; width: 12px; }
+    .bbg { flex: 1; height: 5px; background: #181818; border-radius: 1px; }
+    .bfill { height: 100%; border-radius: 1px; transition: width .3s; }
+    .bfill.hp { background: #3a3; }
+    .bfill.st { background: #33a; }
+    .bfill.inf { background: #a40; }
+    .bval { font-size: 9px; color: #444; width: 28px; text-align: right; }
+    .ptags { margin-top: 3px; }
+    .tag { display: inline-block; font-size: 8px; padding: 1px 4px; border-radius: 1px; margin-right: 2px; }
+    .tag.inf { background: #5a1500; color: #f74; }
+    .tag.res { background: #3a2800; color: #fa3; }
+    .tag.dead { background: #330000; color: #f33; }
+
+    /* World */
+    #panel-world { grid-row: 1; grid-column: 2; padding: 12px; }
+    #ending-banner { display: none; background: #3a0000; border: 1px solid #800; padding: 8px 12px; color: #f66; letter-spacing: 2px; font-size: 13px; text-align: center; margin-bottom: 10px; }
+    .wrow { font-size: 11px; padding: 3px 0; color: #666; }
+    .wrow span { color: #bbb; }
+    #ginf-wrap { margin: 10px 0; }
+    #ginf-label { font-size: 10px; color: #555; margin-bottom: 3px; }
+    #ginf-bg { height: 8px; background: #181818; border-radius: 2px; }
+    #ginf-fill { height: 100%; background: linear-gradient(to right,#833,#f00); border-radius: 2px; transition: width .4s; }
+    #w-flags-list { font-size: 10px; color: #555; margin-top: 6px; line-height: 1.8; }
+
+    /* GM Panel */
+    #panel-gm { grid-row: 1; grid-column: 3; }
+    .gm-block { margin-bottom: 10px; border-bottom: 1px solid #181818; padding-bottom: 8px; }
+    .gm-block:last-child { border-bottom: none; }
+    .gmlabel { font-size: 9px; color: #444; display: block; margin-bottom: 3px; }
+    select, input[type="number"], input[type="text"] {
+      width: 100%; background: #141414; border: 1px solid #2a2a2a;
+      color: #bbb; padding: 4px 6px; font-family: monospace; font-size: 10px; margin-bottom: 4px;
+    }
+    button {
+      width: 100%; padding: 5px; font-family: monospace; font-size: 10px;
+      cursor: pointer; border: 1px solid #2a2a2a; background: #141414;
+      color: #999; margin-bottom: 3px; transition: background .15s;
+    }
+    button:hover { background: #1e1e1e; color: #ccc; }
+    button.red { border-color: #600; color: #f66; }
+    button.red:hover { background: #1a0000; }
+    button.green { border-color: #040; color: #4f8; }
+    button.green:hover { background: #001500; }
+
+    /* Log */
+    #panel-log { grid-row: 2; grid-column: 1 / 4; }
+    #log-entries { display: flex; flex-direction: column-reverse; gap: 1px; max-height: 120px; overflow-y: auto; }
+    .lentry { font-size: 10px; color: #3a3; padding: 1px 0; }
+  </style>
+</head>
+<body>
+
+<!-- GM Login -->
+<div id="gm-login-screen">
+  <h1>THE FLOOD</h1>
+  <p>GM ACCESS ONLY</p>
+  <input type="email" id="gm-email" placeholder="GM Email" />
+  <input type="password" id="gm-password" placeholder="Password" />
+  <button id="btn-gm-login">เข้าสู่ระบบ GM</button>
+  <div id="login-error"></div>
+</div>
+
+<!-- GM Game Screen -->
+<div id="gm-game-screen">
+  <div id="header">
+    <h1>THE FLOOD</h1>
+    <div class="hstat">TURN <span id="hdr-turn">1</span></div>
+    <div class="hstat">DAY <span id="hdr-day">1</span></div>
+    <div class="hstat"><span id="hdr-time">MORNING</span></div>
+    <div class="hstat">PHASE <span id="hdr-phase">INIT</span></div>
+    <div style="margin-left:auto; font-size:9px; color:#333;">GM PANEL</div>
+    <button id="btn-gm-logout">ออก</button>
+  </div>
+
+  <div id="layout">
+    <div class="panel" id="panel-players">
+      <div class="panel-title">PLAYERS</div>
+      <div id="player-list"></div>
+    </div>
+
+    <div class="panel" id="panel-world">
+      <div class="panel-title">WORLD STATE</div>
+      <div id="ending-banner">🏁 ENDING: <span id="ending-type"></span></div>
+      <div id="ginf-wrap">
+        <div id="ginf-label">GLOBAL INFECTION: <span id="ginf-val">0</span>%</div>
+        <div id="ginf-bg"><div id="ginf-fill" style="width:0%"></div></div>
+      </div>
+      <div class="wrow">MAP &nbsp;&nbsp;&nbsp;<span id="w-map">—</span></div>
+      <div class="wrow">ZONE &nbsp;&nbsp;<span id="w-loc">—</span></div>
+      <div id="w-flags-list"></div>
+    </div>
+
+    <div class="panel" id="panel-gm">
+      <div class="panel-title">GM TOOLS</div>
+
+      <div class="gm-block">
+        <label class="gmlabel">PHASE</label>
+        <select id="gm-phase-select">
+          <option value="EXPLORATION">EXPLORATION</option>
+          <option value="EVENT">EVENT</option>
+          <option value="COMBAT">COMBAT</option>
+          <option value="REST">REST</option>
+          <option value="PAUSED">PAUSED</option>
+        </select>
+      </div>
+
+      <div class="gm-block">
+        <label class="gmlabel">TARGET PLAYER</label>
+        <select id="select-source"></select>
+        <button id="btn-kill" class="red">💀 KILL</button>
+      </div>
+
+      <div class="gm-block">
+        <input type="number" id="input-damage" value="10" min="1" />
+        <button id="btn-attack" class="red">⚔ DEAL DAMAGE</button>
+        <input type="number" id="input-heal" value="20" min="1" />
+        <button id="btn-heal" class="green">💊 HEAL</button>
+      </div>
+
+      <div class="gm-block">
+        <button id="btn-infect">☣ INFECT (stage 1)</button>
+        <button id="btn-stage-up">☣+ STAGE UP</button>
+        <button id="btn-restrain">🩹 RESTRAIN</button>
+      </div>
+
+      <div class="gm-block">
+        <label class="gmlabel">WORLD INFECTION ±</label>
+        <input type="number" id="input-world-infection" value="5" min="1" max="100" />
+        <button id="btn-world-infect-up" class="red">▲ INCREASE</button>
+        <button id="btn-world-infect-down" class="green">▼ DECREASE</button>
+      </div>
+
+      <div class="gm-block">
+        <label class="gmlabel">MOVE LOCATION</label>
+        <input type="text" id="input-map-id" placeholder="map id" />
+        <input type="text" id="input-loc-id" placeholder="location id" />
+        <button id="btn-move-location">🗺 MOVE</button>
+      </div>
+
+      <div class="gm-block">
+        <label class="gmlabel">APPLY EVENT</label>
+        <select id="select-event"></select>
+        <select id="select-choice"></select>
+        <button id="btn-apply-event" class="green">▶ APPLY</button>
+      </div>
+
+      <div class="gm-block">
+        <label class="gmlabel">WORLD FLAG</label>
+        <input type="text" id="input-flag-key" placeholder="flag key" />
+        <select id="select-flag-val">
+          <option value="true">true</option>
+          <option value="false">false</option>
+        </select>
+        <button id="btn-set-flag">🚩 SET FLAG</button>
+      </div>
+
+      <div class="gm-block">
+        <button id="btn-end-turn">⏭ NEXT TURN</button>
+        <button id="btn-check-ending" class="red">🏁 CHECK ENDING</button>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-log">
+      <div class="panel-title">GM LOG</div>
+      <div id="log-entries"></div>
+    </div>
+  </div>
+</div>
+
+<div id="app" style="display:none"></div>
+<script type="module" src="./gm_login.ts"></script>
+</body>
+</html>

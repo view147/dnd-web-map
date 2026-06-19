@@ -1,0 +1,59 @@
+{
+  "id": "moral_choice_01",
+  "title": "ทรัพยากรไม่พอทุกคน",
+  "description": "คุณพบคลังเสบียงในซูเปอร์มาร์เก็ตร้าง มีอาหารและยาพอสำหรับ 3 คนเท่านั้น แต่ทีมมี 5 คน มีกลุ่มผู้รอดชีวิตอีกกลุ่มหนึ่งมาถึงพร้อมกัน — พวกเขามีเด็ก 2 คน",
+  "scope": "PARTY",
+  "conditions": {
+    "dayMin": 1
+  },
+  "choices": [
+    {
+      "id": "take_all",
+      "description": "เอาทุกอย่าง — ทีมต้องรอดก่อน",
+      "effects": [
+        {
+          "type": "NOTE",
+          "message": "ทีมเอาเสบียงทั้งหมด — กลุ่มผู้รอดชีวิตอื่นต้องเผชิญชะตากรรมเอง"
+        },
+        {
+          "type": "SET_FLAG",
+          "scope": "WORLD",
+          "key": "abandoned_survivors",
+          "value": true
+        }
+      ]
+    },
+    {
+      "id": "split",
+      "description": "แบ่งกันอย่างยุติธรรม — ทุกคนได้น้อยลงแต่ไม่มีใครอดตาย",
+      "effects": [
+        {
+          "type": "NOTE",
+          "message": "ทีมแบ่งเสบียงกัน — ทุกคนได้รับน้อยลง แต่ไม่มีใครถูกทิ้ง"
+        },
+        {
+          "type": "SET_FLAG",
+          "scope": "WORLD",
+          "key": "shared_resources",
+          "value": true
+        }
+      ]
+    },
+    {
+      "id": "trade",
+      "description": "เจรจาแลกเปลี่ยน — ถ้าพวกเขามีข้อมูลหรือของที่มีค่ากว่า",
+      "effects": [
+        {
+          "type": "NOTE",
+          "message": "ทีมเจรจาแลกเปลี่ยน — ผลลัพธ์ขึ้นอยู่กับสิ่งที่กลุ่มอื่นมี"
+        },
+        {
+          "type": "SET_FLAG",
+          "scope": "WORLD",
+          "key": "negotiated_trade",
+          "value": true
+        }
+      ]
+    }
+  ]
+}

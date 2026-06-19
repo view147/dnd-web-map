@@ -1,0 +1,8 @@
+{
+  "name": "Kael",
+  "role": "Soldier",
+  "description": "อดีตทหาร เชี่ยวชาญการต่อสู้และการเอาตัวรอด แต่แบกรับความสูญเสียไว้มาก",
+  "startingCondition": [],
+  "startingInventory": ["bandage"],
+  "storyTag": "season_1"
+}

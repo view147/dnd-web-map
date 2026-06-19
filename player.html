@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>THE FLOOD — Player</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #080808; color: #ccc; font-family: 'Courier New', monospace; min-height: 100vh; }
+
+    /* Login Screen */
+    #login-screen {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; height: 100vh; gap: 12px;
+    }
+    #login-screen h1 { color: #c00; letter-spacing: 6px; font-size: 22px; margin-bottom: 8px; }
+    #login-screen input {
+      width: 280px; padding: 8px 12px; background: #111;
+      border: 1px solid #333; color: #ccc; font-family: monospace; font-size: 13px;
+    }
+    #login-screen button {
+      width: 280px; padding: 8px; background: #1a0000; border: 1px solid #600;
+      color: #f66; font-family: monospace; font-size: 13px; cursor: pointer;
+      letter-spacing: 2px;
+    }
+    #login-screen button:hover { background: #2a0000; }
+    #login-error { color: #f44; font-size: 11px; }
+
+    /* Game Screen */
+    #game-screen { display: none; }
+
+    #header {
+      background: #0e0e0e; border-bottom: 1px solid #222;
+      padding: 8px 16px; display: flex; align-items: center; gap: 16px; height: 38px;
+    }
+    #header h1 { color: #c00; font-size: 14px; letter-spacing: 4px; }
+    .hstat { font-size: 11px; color: #555; }
+    .hstat span { color: #ddd; }
+    #btn-logout {
+      margin-left: auto; font-size: 10px; padding: 3px 8px;
+      background: none; border: 1px solid #333; color: #555; cursor: pointer; font-family: monospace;
+    }
+
+    #layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto auto auto;
+      gap: 1px; background: #1a1a1a;
+      padding: 1px;
+    }
+
+    .panel { background: #0c0c0c; padding: 12px; }
+    .panel-title { font-size: 9px; letter-spacing: 3px; color: #444; border-bottom: 1px solid #1a1a1a; padding-bottom: 5px; margin-bottom: 10px; }
+
+    /* Character Card */
+    #panel-character { grid-column: 1; }
+    .char-name { font-size: 18px; color: #eee; margin-bottom: 2px; }
+    .char-role { font-size: 11px; color: #555; margin-bottom: 12px; }
+
+    .bar-group { margin-bottom: 8px; }
+    .bar-label { font-size: 10px; color: #555; margin-bottom: 3px; display: flex; justify-content: space-between; }
+    .bar-bg { height: 8px; background: #181818; border-radius: 2px; }
+    .bar-fill { height: 100%; border-radius: 2px; transition: width .4s; }
+    .bar-fill.hp { background: #3a3; }
+    .bar-fill.st { background: #33a; }
+    .bar-fill.inf { background: #a40; }
+
+    .status-tags { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 4px; }
+    .stag {
+      font-size: 9px; padding: 2px 6px; border-radius: 1px;
+    }
+    .stag.infected { background: #5a1500; color: #f74; }
+    .stag.restrained { background: #3a2800; color: #fa3; }
+    .stag.alive { background: #0a2000; color: #4f8; }
+    .stag.dead { background: #330000; color: #f33; }
+
+    /* World */
+    #panel-world { grid-column: 2; }
+    .wrow { font-size: 11px; padding: 3px 0; color: #555; }
+    .wrow span { color: #bbb; }
+    #ginf-wrap { margin: 8px 0 4px; }
+    #p-ginf-label { font-size: 10px; color: #555; margin-bottom: 3px; }
+    #p-ginf-bg { height: 6px; background: #181818; border-radius: 2px; }
+    #p-ginf-fill { height: 100%; background: linear-gradient(to right,#833,#f00); border-radius: 2px; transition: width .4s; }
+
+    #ending-notice {
+      display: none; grid-column: 1 / 3;
+      background: #3a0000; border: 1px solid #800;
+      padding: 12px; text-align: center; color: #f66;
+      font-size: 14px; letter-spacing: 2px;
+    }
+
+    /* Inventory */
+    #panel-inventory { grid-column: 1; }
+    .inv-item { font-size: 11px; color: #888; padding: 3px 0; border-bottom: 1px solid #141414; }
+    .inv-empty { font-size: 11px; color: #333; }
+
+    /* Notes */
+    #panel-notes { grid-column: 2; }
+    #player-note {
+      width: 100%; height: 120px; background: #111; border: 1px solid #222;
+      color: #bbb; font-family: monospace; font-size: 11px; padding: 6px; resize: none;
+    }
+    #btn-save-note {
+      margin-top: 4px; padding: 4px 10px; background: #0a1a00;
+      border: 1px solid #040; color: #4a4; font-family: monospace;
+      font-size: 10px; cursor: pointer;
+    }
+    #note-saved { font-size: 9px; color: #444; margin-left: 6px; }
+
+    /* GM Log */
+    #panel-log { grid-column: 1 / 3; }
+    #p-log-entries {
+      display: flex; flex-direction: column-reverse; gap: 2px;
+      max-height: 130px; overflow-y: auto;
+    }
+    .lentry { font-size: 10px; color: #3a3; padding: 1px 0; }
+    .lentry.sys { color: #444; }
+
+    /* Phase Banner */
+    #phase-banner {
+      grid-column: 1 / 3;
+      text-align: center; padding: 6px;
+      font-size: 11px; letter-spacing: 3px;
+      background: #0e0e0e; border-bottom: 1px solid #1a1a1a;
+      color: #555;
+    }
+    #phase-banner.combat { color: #f44; background: #1a0000; }
+    #phase-banner.event { color: #fa4; background: #1a1000; }
+  </style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="login-screen">
+  <h1>THE FLOOD</h1>
+  <p style="color:#555; font-size:11px; margin-bottom:8px;">PLAYER LOGIN</p>
+  <input type="email" id="login-email" placeholder="อีเมล" />
+  <input type="password" id="login-password" placeholder="รหัสผ่าน" />
+  <button id="btn-login">เข้าสู่เกม</button>
+  <div id="login-error"></div>
+</div>
+
+<!-- Game -->
+<div id="game-screen">
+
+  <div id="header">
+    <h1>THE FLOOD</h1>
+    <div class="hstat">TURN <span id="p-turn">1</span></div>
+    <div class="hstat">DAY <span id="p-day">1</span></div>
+    <div class="hstat"><span id="p-time">MORNING</span></div>
+    <button id="btn-logout">ออกจากระบบ</button>
+  </div>
+
+  <div id="layout">
+
+    <div id="phase-banner">— WAITING FOR GM —</div>
+    <div id="ending-notice">🏁 ENDING: <span id="p-ending-type"></span></div>
+
+    <!-- Character -->
+    <div class="panel" id="panel-character">
+      <div class="panel-title">YOUR CHARACTER</div>
+      <div class="char-name" id="p-char-name">—</div>
+      <div class="char-role" id="p-char-role">—</div>
+
+      <div class="bar-group">
+        <div class="bar-label"><span>HP</span><span id="p-hp-val">—</span></div>
+        <div class="bar-bg"><div class="bar-fill hp" id="p-hp-bar" style="width:100%"></div></div>
+      </div>
+      <div class="bar-group">
+        <div class="bar-label"><span>STAMINA</span><span id="p-st-val">—</span></div>
+        <div class="bar-bg"><div class="bar-fill st" id="p-st-bar" style="width:100%"></div></div>
+      </div>
+      <div class="bar-group">
+        <div class="bar-label"><span>INFECTION</span><span id="p-inf-val">Stage 0</span></div>
+        <div class="bar-bg"><div class="bar-fill inf" id="p-inf-bar" style="width:0%"></div></div>
+      </div>
+
+      <div class="status-tags" id="p-status-tags"></div>
+    </div>
+
+    <!-- World -->
+    <div class="panel" id="panel-world">
+      <div class="panel-title">WORLD</div>
+      <div id="ginf-wrap">
+        <div id="p-ginf-label">GLOBAL INFECTION: <span id="p-ginf-val">0</span>%</div>
+        <div id="p-ginf-bg"><div id="p-ginf-fill" style="width:0%"></div></div>
+      </div>
+      <div class="wrow">MAP &nbsp;&nbsp;<span id="p-map">—</span></div>
+      <div class="wrow">ZONE &nbsp;<span id="p-loc">—</span></div>
+    </div>
+
+    <!-- Inventory -->
+    <div class="panel" id="panel-inventory">
+      <div class="panel-title">INVENTORY</div>
+      <div id="p-inventory"><div class="inv-empty">ไม่มีไอเทม</div></div>
+    </div>
+
+    <!-- Notes -->
+    <div class="panel" id="panel-notes">
+      <div class="panel-title">MY NOTES (ส่วนตัว)</div>
+      <textarea id="player-note" placeholder="จดโน้ตส่วนตัวที่นี่ — GM ไม่เห็น"></textarea>
+      <div>
+        <button id="btn-save-note">💾 บันทึก</button>
+        <span id="note-saved"></span>
+      </div>
+    </div>
+
+    <!-- Log -->
+    <div class="panel" id="panel-log">
+      <div class="panel-title">GM LOG</div>
+      <div id="p-log-entries"></div>
+    </div>
+
+  </div>
+</div>
+
+<script type="module" src="./player.ts"></script>
+</body>
+</html>
