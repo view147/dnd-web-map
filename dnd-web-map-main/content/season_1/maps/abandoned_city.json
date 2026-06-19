@@ -1,0 +1,7 @@
+{
+  "id": "abandoned_city",
+  "threatLevel": 4,
+  "infectionRisk": 3,
+  "lootTable": "urban",
+  "connections": ["research_lab"]
+}

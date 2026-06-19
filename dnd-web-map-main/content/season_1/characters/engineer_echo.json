@@ -1,0 +1,8 @@
+{
+  "name": "Echo",
+  "role": "Engineer",
+  "description": "วิศวกรที่เก่งเรื่องซ่อมแซมและสร้างสิ่งของ สามารถซ่อมยานพาหนะและอุปกรณ์ได้",
+  "startingCondition": [],
+  "startingInventory": ["radio_parts"],
+  "storyTag": "season_1"
+}

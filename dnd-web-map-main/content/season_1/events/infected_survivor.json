@@ -1,0 +1,58 @@
+{
+  "id": "infected_survivor",
+  "title": "ผู้รอดชีวิตที่ติดเชื้อ",
+  "description": "คุณพบชายคนหนึ่งซ่อนอยู่ในตึกร้าง แขนขวาของเขาถูกมัดแน่น มีรอยเชื้อลามถึงไหล่แล้ว เขาบอกว่ารู้ที่อยู่ของห้องแล็บวิจัย แต่ต้องการความช่วยเหลือในการเดินทาง",
+  "scope": "PARTY",
+  "conditions": {
+    "dayMin": 3,
+    "map": "abandoned_city"
+  },
+  "choices": [
+    {
+      "id": "help",
+      "description": "พาเขาไปด้วย รับข้อมูลห้องแล็บ แต่เสี่ยงติดเชื้อ",
+      "effects": [
+        {
+          "type": "SET_FLAG",
+          "scope": "WORLD",
+          "key": "knows_lab_location",
+          "value": true
+        },
+        {
+          "type": "NOTE",
+          "message": "ทีมรับผู้รอดชีวิตที่ติดเชื้อเข้าร่วม — รู้ที่อยู่ห้องแล็บแล้ว"
+        }
+      ]
+    },
+    {
+      "id": "leave",
+      "description": "ทิ้งเขาไว้ ปลอดภัยกว่า แต่สูญเสียข้อมูล",
+      "effects": [
+        {
+          "type": "WORLD_INFECTION",
+          "value": 2
+        },
+        {
+          "type": "NOTE",
+          "message": "ทีมตัดสินใจทิ้งผู้รอดชีวิตไว้ — ระดับเชื้อในโลกเพิ่มขึ้น"
+        }
+      ]
+    },
+    {
+      "id": "end_suffering",
+      "description": "ยุติความทุกข์ทรมานของเขา",
+      "effects": [
+        {
+          "type": "NOTE",
+          "message": "ทีมตัดสินใจยุติความทุกข์ทรมาน — การตัดสินใจนี้จะถูกจดจำ"
+        },
+        {
+          "type": "SET_FLAG",
+          "scope": "WORLD",
+          "key": "mercy_kill_done",
+          "value": true
+        }
+      ]
+    }
+  ]
+}

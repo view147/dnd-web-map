@@ -1,0 +1,34 @@
+{
+  "id": "broken_radio",
+  "title": "สัญญาณวิทยุ",
+  "description": "คุณได้ยินเสียงวิทยุเบาๆ — มีใครบางคนส่งสัญญาณซ้ำๆ ว่า 'มีทางรักษา ที่พิกัด...' แล้วสัญญาณก็ขาดหาย วิทยุของคุณเสีย ต้องซ่อมก่อนถึงจะได้ยินพิกัดเต็มๆ",
+  "scope": "PARTY",
+  "conditions": { "dayMin": 1 },
+  "choices": [
+    {
+      "id": "repair_now",
+      "description": "ซ่อมวิทยุทันที — ใช้ radio_parts และเวลา",
+      "effects": [
+        { "type": "SET_FLAG", "scope": "WORLD", "key": "radio_repaired", "value": true },
+        { "type": "SET_FLAG", "scope": "WORLD", "key": "knows_lab_location", "value": true },
+        { "type": "NOTE", "message": "📻 ซ่อมวิทยุสำเร็จ — ได้ยินพิกัดห้องแล็บแล้ว" }
+      ]
+    },
+    {
+      "id": "save_parts",
+      "description": "เก็บชิ้นส่วนไว้ก่อน — ยังไม่พร้อมซ่อม",
+      "effects": [
+        { "type": "NOTE", "message": "📻 เลือกไม่ซ่อมวิทยุตอนนี้ — ยังไม่รู้พิกัด" }
+      ]
+    },
+    {
+      "id": "find_engineer",
+      "description": "หาคนที่ซ่อมเป็น — ถ้าทีมมี Engineer",
+      "effects": [
+        { "type": "SET_FLAG", "scope": "WORLD", "key": "radio_repaired", "value": true },
+        { "type": "SET_FLAG", "scope": "WORLD", "key": "knows_lab_location", "value": true },
+        { "type": "NOTE", "message": "📻 Engineer ซ่อมวิทยุได้โดยไม่ใช้ชิ้นส่วน — รู้พิกัดห้องแล็บแล้ว" }
+      ]
+    }
+  ]
+}
