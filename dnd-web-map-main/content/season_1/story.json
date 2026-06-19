@@ -1,9 +1,0 @@
-{
-  "title": "Exodus",
-  "intro": "Radio signal detected...",
-  "milestones": [
-    { "day": 5, "event": "truth_broadcast" },
-    { "day": 15, "event": "ship_signal" }
-  ],
-  "ending": "escape_choice"
-}

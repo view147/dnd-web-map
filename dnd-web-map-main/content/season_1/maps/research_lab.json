@@ -1,9 +1,0 @@
-{
-  "id": "research_lab",
-  "name": "ห้องแล็บวิจัย",
-  "description": "สถานที่วิจัย The Flood ที่ถูกทิ้งร้าง มีข้อมูลสำคัญอยู่ที่นี่ แต่เต็มไปด้วยอันตราย",
-  "threatLevel": 5,
-  "infectionRisk": 5,
-  "lootTable": "medical",
-  "connections": ["highway"]
-}
