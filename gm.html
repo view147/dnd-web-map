@@ -3,230 +3,327 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>THE FLOOD — GM</title>
+  <title>THE FLOOD — GM Terminal</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=JetBrains+Mono:wght@400;600&display=swap');
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #0a0a0a; color: #ccc; font-family: 'Courier New', monospace; height: 100vh; overflow: hidden; }
 
-    /* Login */
+    :root {
+      --bg-void: #050805;
+      --bg-panel: #0a120a;
+      --bg-field: #0d1a0d;
+      --border-dim: #18301c;
+      --border-mid: #245a2c;
+      --green-dim: #3a6b40;
+      --green-mid: #5fa86a;
+      --green-bright: #6dffa0;
+      --green-text: #b9e8c2;
+      --red-dim: #4a1515;
+      --red-mid: #8a2828;
+      --red-bright: #ff5c5c;
+      --amber: #e8b85f;
+    }
+
+    body {
+      background: var(--bg-void);
+      color: var(--green-text);
+      font-family: 'JetBrains Mono', 'Share Tech Mono', monospace;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* scanline texture */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.15) 2px, rgba(0,0,0,0.15) 4px);
+      pointer-events: none; z-index: 999;
+    }
+
+    ::selection { background: var(--green-mid); color: #000; }
+
+    /* ===== Login screen ===== */
     #gm-login-screen {
-      display: flex; flex-direction: column; align-items: center;
-      justify-content: center; height: 100vh; gap: 10px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 100vh; gap: 4px; position: relative;
     }
-    #gm-login-screen h1 { color: #c00; letter-spacing: 6px; font-size: 20px; margin-bottom: 6px; }
-    #gm-login-screen p { color: #444; font-size: 11px; margin-bottom: 10px; }
+    .login-frame {
+      width: 320px; border: 1px solid var(--border-mid); background: var(--bg-panel);
+      padding: 28px 24px; position: relative;
+    }
+    .login-frame::before {
+      content: 'GM ACCESS TERMINAL'; position: absolute; top: -9px; left: 16px;
+      background: var(--bg-void); padding: 0 8px; font-size: 9px; letter-spacing: 3px; color: var(--green-dim);
+    }
+    .login-title {
+      font-size: 24px; letter-spacing: 8px; color: var(--green-bright); text-align: center; margin-bottom: 2px;
+      text-shadow: 0 0 12px rgba(109,255,160,0.35);
+    }
+    .login-sub { font-size: 10px; letter-spacing: 3px; color: var(--green-dim); text-align: center; margin-bottom: 24px; }
+    .field-label { font-size: 9px; letter-spacing: 2px; color: var(--green-dim); display: block; margin: 12px 0 4px; }
     #gm-login-screen input {
-      width: 260px; padding: 7px 10px; background: #111;
-      border: 1px solid #333; color: #ccc; font-family: monospace; font-size: 12px;
+      width: 100%; padding: 9px 10px; background: var(--bg-field);
+      border: 1px solid var(--border-dim); color: var(--green-text);
+      font-family: inherit; font-size: 13px; outline: none;
     }
-    #gm-login-screen button {
-      width: 260px; padding: 7px; background: #1a0000;
-      border: 1px solid #600; color: #f66; font-family: monospace;
-      font-size: 12px; cursor: pointer; letter-spacing: 2px;
+    #gm-login-screen input:focus { border-color: var(--border-mid); }
+    #btn-gm-login {
+      width: 100%; margin-top: 20px; padding: 10px; background: rgba(95,168,106,0.08);
+      border: 1px solid var(--border-mid); color: var(--green-bright);
+      font-family: inherit; font-size: 12px; letter-spacing: 3px; cursor: pointer;
+      transition: background .15s;
     }
-    #gm-login-screen button:hover { background: #2a0000; }
-    #login-error { color: #f44; font-size: 10px; }
+    #btn-gm-login:hover { background: rgba(95,168,106,0.18); }
+    #login-error { font-size: 11px; color: var(--red-bright); margin-top: 12px; text-align: center; min-height: 14px; }
 
-    /* Game */
+    /* ===== Game screen ===== */
     #gm-game-screen { display: none; }
 
     #header {
-      background: #111; border-bottom: 1px solid #2a2a2a;
-      padding: 8px 14px; display: flex; align-items: center; gap: 18px; height: 38px;
+      background: var(--bg-panel); border-bottom: 1px solid var(--border-dim);
+      padding: 0 16px; display: flex; align-items: center; gap: 20px; height: 42px;
     }
-    #header h1 { color: #c00; font-size: 15px; letter-spacing: 5px; }
-    .hstat { font-size: 11px; color: #555; }
-    .hstat span { color: #ddd; }
+    .brand { font-size: 14px; letter-spacing: 5px; color: var(--green-bright); text-shadow: 0 0 10px rgba(109,255,160,0.3); }
+    .hstat { font-size: 10px; letter-spacing: 1px; color: var(--green-dim); display: flex; gap: 4px; }
+    .hstat b { color: var(--green-text); font-weight: 600; }
+    .pulse-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green-bright); display: inline-block; box-shadow: 0 0 6px var(--green-bright); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
     #btn-gm-logout {
-      margin-left: auto; font-size: 10px; padding: 3px 8px;
-      background: none; border: 1px solid #333; color: #555; cursor: pointer; font-family: monospace;
+      margin-left: auto; font-size: 9px; letter-spacing: 2px; padding: 5px 10px;
+      background: none; border: 1px solid var(--border-dim); color: var(--green-dim); cursor: pointer; font-family: inherit;
     }
+    #btn-gm-logout:hover { border-color: var(--border-mid); color: var(--green-text); }
 
     #layout {
       display: grid;
-      grid-template-columns: 230px 1fr 240px;
-      grid-template-rows: 1fr 160px;
-      gap: 1px; background: #1a1a1a;
-      height: calc(100vh - 38px);
+      grid-template-columns: 260px 1fr 280px;
+      grid-template-rows: 1fr 150px;
+      gap: 1px; background: var(--border-dim);
+      height: calc(100vh - 42px);
     }
 
-    .panel { background: #0c0c0c; padding: 10px; overflow-y: auto; }
-    .panel-title { font-size: 9px; letter-spacing: 3px; color: #444; border-bottom: 1px solid #1a1a1a; padding-bottom: 5px; margin-bottom: 8px; }
+    .panel { background: var(--bg-panel); padding: 14px; overflow-y: auto; }
+    .panel-title {
+      font-size: 9px; letter-spacing: 3px; color: var(--green-dim);
+      border-bottom: 1px solid var(--border-dim); padding-bottom: 8px; margin-bottom: 12px;
+      display: flex; align-items: center; gap: 6px;
+    }
 
-    /* Players */
+    /* ===== Players panel ===== */
     #panel-players { grid-row: 1; grid-column: 1; }
-    .pcard { border: 1px solid #1e1e1e; padding: 7px; margin-bottom: 6px; }
-    .pcard.infected { border-color: #5a2000; }
+    .pcard {
+      border: 1px solid var(--border-dim); background: var(--bg-field); padding: 9px; margin-bottom: 8px;
+    }
+    .pcard.infected { border-color: var(--red-dim); }
     .pcard.dead { opacity: 0.35; }
-    .pname { font-size: 12px; color: #eee; margin-bottom: 2px; }
-    .prole { font-size: 10px; color: #555; margin-bottom: 5px; }
-    .bar-row { display: flex; align-items: center; gap: 5px; margin-bottom: 2px; }
-    .blabel { font-size: 9px; color: #444; width: 12px; }
-    .bbg { flex: 1; height: 5px; background: #181818; border-radius: 1px; }
-    .bfill { height: 100%; border-radius: 1px; transition: width .3s; }
-    .bfill.hp { background: #3a3; }
-    .bfill.st { background: #33a; }
-    .bfill.inf { background: #a40; }
-    .bval { font-size: 9px; color: #444; width: 28px; text-align: right; }
-    .ptags { margin-top: 3px; }
-    .tag { display: inline-block; font-size: 8px; padding: 1px 4px; border-radius: 1px; margin-right: 2px; }
-    .tag.inf { background: #5a1500; color: #f74; }
-    .tag.res { background: #3a2800; color: #fa3; }
-    .tag.dead { background: #330000; color: #f33; }
+    .pname { font-size: 12px; color: var(--green-text); margin-bottom: 2px; }
+    .prole { font-size: 10px; color: var(--green-dim); margin-bottom: 6px; }
+    .bar-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+    .blabel { font-size: 8px; color: var(--green-dim); width: 14px; }
+    .bbg { flex: 1; height: 5px; background: #0a0a0a; }
+    .bfill { height: 100%; }
+    .bfill.hp { background: var(--green-mid); }
+    .bfill.st { background: #4a7ec9; }
+    .bfill.inf { background: var(--red-mid); }
+    .bval { font-size: 8px; color: var(--green-dim); width: 30px; text-align: right; }
+    .ptags { margin-top: 4px; }
+    .tag { display: inline-block; font-size: 8px; padding: 1px 5px; margin-right: 3px; letter-spacing: 1px; }
+    .tag.inf { background: var(--red-dim); color: var(--red-bright); }
+    .tag.res { background: rgba(232,184,95,0.12); color: var(--amber); }
+    .tag.dead { background: var(--red-dim); color: var(--red-bright); }
 
-    /* World */
-    #panel-world { grid-row: 1; grid-column: 2; padding: 12px; }
-    #ending-banner { display: none; background: #3a0000; border: 1px solid #800; padding: 8px 12px; color: #f66; letter-spacing: 2px; font-size: 13px; text-align: center; margin-bottom: 10px; }
-    .wrow { font-size: 11px; padding: 3px 0; color: #666; }
-    .wrow span { color: #bbb; }
-    #ginf-wrap { margin: 10px 0; }
-    #ginf-label { font-size: 10px; color: #555; margin-bottom: 3px; }
-    #ginf-bg { height: 8px; background: #181818; border-radius: 2px; }
-    #ginf-fill { height: 100%; background: linear-gradient(to right,#833,#f00); border-radius: 2px; transition: width .4s; }
-    #w-flags-list { font-size: 10px; color: #555; margin-top: 6px; line-height: 1.8; }
+    /* ===== World panel ===== */
+    #panel-world { grid-row: 1; grid-column: 2; padding: 16px; }
+    #ending-banner {
+      display: none; background: rgba(255,92,92,0.08); border: 1px solid var(--red-mid);
+      padding: 10px 14px; color: var(--red-bright); letter-spacing: 2px; font-size: 13px; text-align: center; margin-bottom: 14px;
+    }
+    .wrow { font-size: 11px; padding: 4px 0; color: var(--green-dim); display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-dim); }
+    .wrow span:last-child { color: var(--green-text); }
+    #ginf-wrap { margin: 4px 0 16px; }
+    #ginf-label { font-size: 10px; letter-spacing: 1px; color: var(--green-dim); margin-bottom: 5px; display: flex; justify-content: space-between; }
+    #ginf-val { color: var(--amber); font-weight: 600; }
+    #ginf-bg { height: 10px; background: #0a0a0a; border: 1px solid var(--border-dim); }
+    #ginf-fill { height: 100%; background: linear-gradient(90deg, var(--green-mid), var(--amber), var(--red-mid)); transition: width .4s; }
+    #w-flags-list { font-size: 10px; color: var(--green-dim); margin-top: 10px; line-height: 2; }
 
-    /* GM Panel */
+    /* ===== GM Tools panel ===== */
     #panel-gm { grid-row: 1; grid-column: 3; }
-    .gm-block { margin-bottom: 10px; border-bottom: 1px solid #181818; padding-bottom: 8px; }
-    .gm-block:last-child { border-bottom: none; }
-    .gmlabel { font-size: 9px; color: #444; display: block; margin-bottom: 3px; }
-    select, input[type="number"], input[type="text"] {
-      width: 100%; background: #141414; border: 1px solid #2a2a2a;
-      color: #bbb; padding: 4px 6px; font-family: monospace; font-size: 10px; margin-bottom: 4px;
+    .step {
+      border: 1px solid var(--border-dim); margin-bottom: 10px; padding: 10px; position: relative;
     }
-    button {
-      width: 100%; padding: 5px; font-family: monospace; font-size: 10px;
-      cursor: pointer; border: 1px solid #2a2a2a; background: #141414;
-      color: #999; margin-bottom: 3px; transition: background .15s;
+    .step-num {
+      position: absolute; top: -9px; left: 8px; background: var(--bg-panel);
+      font-size: 9px; letter-spacing: 1px; color: var(--green-dim); padding: 0 6px;
     }
-    button:hover { background: #1e1e1e; color: #ccc; }
-    button.red { border-color: #600; color: #f66; }
-    button.red:hover { background: #1a0000; }
-    button.green { border-color: #040; color: #4f8; }
-    button.green:hover { background: #001500; }
+    .step-num b { color: var(--green-bright); }
+    .step-hint { font-size: 9px; color: var(--green-dim); margin-bottom: 8px; line-height: 1.5; }
 
-    /* Log */
+    select, input[type="number"], input[type="text"] {
+      width: 100%; background: var(--bg-field); border: 1px solid var(--border-dim);
+      color: var(--green-text); padding: 6px 8px; font-family: inherit; font-size: 11px; margin-bottom: 6px; outline: none;
+    }
+    select:focus, input:focus { border-color: var(--border-mid); }
+
+    button {
+      width: 100%; padding: 7px; font-family: inherit; font-size: 10px; letter-spacing: 1px;
+      cursor: pointer; border: 1px solid var(--border-dim); background: var(--bg-field);
+      color: var(--green-text); margin-bottom: 5px; transition: all .15s;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    button:hover { border-color: var(--border-mid); background: rgba(95,168,106,0.08); }
+    button.danger { border-color: var(--red-dim); color: var(--red-bright); }
+    button.danger:hover { background: rgba(255,92,92,0.08); border-color: var(--red-mid); }
+    button.heal { border-color: rgba(95,168,106,0.4); color: var(--green-bright); }
+    button.heal:hover { background: rgba(95,168,106,0.12); }
+    button.confirm { border-color: var(--green-mid); color: var(--green-bright); background: rgba(95,168,106,0.1); }
+    button.confirm:hover { background: rgba(95,168,106,0.22); }
+    button.minor { font-size: 9px; padding: 5px; }
+    .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .btn-row button { margin-bottom: 0; }
+
+    /* ===== News / Log ===== */
     #panel-log { grid-row: 2; grid-column: 1 / 4; }
-    #log-entries { display: flex; flex-direction: column-reverse; gap: 1px; max-height: 120px; overflow-y: auto; }
-    .lentry { font-size: 10px; color: #3a3; padding: 1px 0; }
+    #log-entries { display: flex; flex-direction: column-reverse; gap: 2px; max-height: 90px; overflow-y: auto; }
+    .lentry { font-size: 10px; color: var(--green-mid); padding: 1px 0; }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-void); }
+    ::-webkit-scrollbar-thumb { background: var(--border-mid); }
   </style>
 </head>
 <body>
 
-<!-- GM Login -->
 <div id="gm-login-screen">
-  <h1>THE FLOOD</h1>
-  <p>GM ACCESS ONLY</p>
-  <input type="email" id="gm-email" placeholder="GM Email" />
-  <input type="password" id="gm-password" placeholder="Password" />
-  <button id="btn-gm-login">เข้าสู่ระบบ GM</button>
-  <div id="login-error"></div>
+  <div class="login-frame">
+    <div class="login-title">THE FLOOD</div>
+    <div class="login-sub">BIO-CONTAINMENT // GM ONLY</div>
+
+    <label class="field-label">Operator email</label>
+    <input type="email" id="gm-email" placeholder="gm@theflood.com" />
+
+    <label class="field-label">Access code</label>
+    <input type="password" id="gm-password" placeholder="••••••••" />
+
+    <button id="btn-gm-login">▶ AUTHENTICATE</button>
+    <div id="login-error"></div>
+  </div>
 </div>
 
-<!-- GM Game Screen -->
 <div id="gm-game-screen">
   <div id="header">
-    <h1>THE FLOOD</h1>
-    <div class="hstat">TURN <span id="hdr-turn">1</span></div>
-    <div class="hstat">DAY <span id="hdr-day">1</span></div>
-    <div class="hstat"><span id="hdr-time">MORNING</span></div>
-    <div class="hstat">PHASE <span id="hdr-phase">INIT</span></div>
-    <div style="margin-left:auto; font-size:9px; color:#333;">GM PANEL</div>
-    <button id="btn-gm-logout">ออก</button>
+    <span class="brand">THE FLOOD</span>
+    <span class="hstat">TURN <b id="hdr-turn">1</b></span>
+    <span class="hstat">DAY <b id="hdr-day">1</b></span>
+    <span class="hstat"><b id="hdr-time">MORNING</b></span>
+    <span class="hstat">PHASE <b id="hdr-phase">INIT</b></span>
+    <span class="hstat"><span class="pulse-dot"></span> GM LINK ACTIVE</span>
+    <button id="btn-gm-logout">⏻ DISCONNECT</button>
   </div>
 
   <div id="layout">
+
     <div class="panel" id="panel-players">
-      <div class="panel-title">PLAYERS</div>
+      <div class="panel-title"><i>👥</i> SURVIVORS</div>
       <div id="player-list"></div>
     </div>
 
     <div class="panel" id="panel-world">
-      <div class="panel-title">WORLD STATE</div>
-      <div id="ending-banner">🏁 ENDING: <span id="ending-type"></span></div>
+      <div class="panel-title"><i>🌐</i> WORLD STATE</div>
+      <div id="ending-banner">⚠ ENDING TRIGGERED: <span id="ending-type"></span></div>
+
       <div id="ginf-wrap">
-        <div id="ginf-label">GLOBAL INFECTION: <span id="ginf-val">0</span>%</div>
+        <div id="ginf-label">GLOBAL INFECTION LEVEL <span id="ginf-val">0%</span></div>
         <div id="ginf-bg"><div id="ginf-fill" style="width:0%"></div></div>
       </div>
-      <div class="wrow">MAP &nbsp;&nbsp;&nbsp;<span id="w-map">—</span></div>
-      <div class="wrow">ZONE &nbsp;&nbsp;<span id="w-loc">—</span></div>
+
+      <div class="wrow"><span>MAP</span><span id="w-map">—</span></div>
+      <div class="wrow"><span>ZONE</span><span id="w-loc">—</span></div>
       <div id="w-flags-list"></div>
     </div>
 
     <div class="panel" id="panel-gm">
-      <div class="panel-title">GM TOOLS</div>
+      <div class="panel-title"><i>⚙</i> GM CONTROL</div>
 
-      <div class="gm-block">
-        <label class="gmlabel">PHASE</label>
+      <div class="step">
+        <span class="step-num">STEP <b>1</b> — TARGET</span>
+        <div class="step-hint">เลือกผู้เล่นที่จะใช้คำสั่งด้วย แล้วเลือก phase ปัจจุบันของเกม</div>
         <select id="gm-phase-select">
-          <option value="EXPLORATION">EXPLORATION</option>
-          <option value="EVENT">EVENT</option>
-          <option value="COMBAT">COMBAT</option>
-          <option value="REST">REST</option>
-          <option value="PAUSED">PAUSED</option>
+          <option value="EXPLORATION">🚶 EXPLORATION — สำรวจโลก</option>
+          <option value="EVENT">📋 EVENT — กำลังเกิดเหตุการณ์</option>
+          <option value="COMBAT">⚔ COMBAT — กำลังต่อสู้</option>
+          <option value="REST">🏕 REST — พักฟื้น</option>
+          <option value="PAUSED">⏸ PAUSED — หยุดชั่วคราว</option>
         </select>
-      </div>
-
-      <div class="gm-block">
-        <label class="gmlabel">TARGET PLAYER</label>
         <select id="select-source"></select>
-        <button id="btn-kill" class="red">💀 KILL</button>
       </div>
 
-      <div class="gm-block">
+      <div class="step">
+        <span class="step-num">STEP <b>2</b> — HP</span>
+        <div class="step-hint">ใส่จำนวน แล้วกดปุ่มเพื่อทำกับผู้เล่นที่เลือกไว้ด้านบน</div>
         <input type="number" id="input-damage" value="10" min="1" />
-        <button id="btn-attack" class="red">⚔ DEAL DAMAGE</button>
+        <button id="btn-attack" class="danger">⚔ สร้างความเสียหาย</button>
         <input type="number" id="input-heal" value="20" min="1" />
-        <button id="btn-heal" class="green">💊 HEAL</button>
+        <button id="btn-heal" class="heal">💧 รักษา</button>
       </div>
 
-      <div class="gm-block">
-        <button id="btn-infect">☣ INFECT (stage 1)</button>
-        <button id="btn-stage-up">☣+ STAGE UP</button>
-        <button id="btn-restrain">🩹 RESTRAIN</button>
+      <div class="step">
+        <span class="step-num">STEP <b>3</b> — INFECTION</span>
+        <div class="step-hint">จัดการสถานะติดเชื้อของผู้เล่นที่เลือกไว้</div>
+        <button id="btn-infect" class="minor">☣ ติดเชื้อ (stage 1)</button>
+        <button id="btn-stage-up" class="minor">☣⬆ เพิ่ม stage</button>
+        <button id="btn-restrain" class="minor">🩹 มัดเชื้อ</button>
+        <button id="btn-kill" class="danger minor">💀 ผู้เล่นเสียชีวิต</button>
       </div>
 
-      <div class="gm-block">
-        <label class="gmlabel">WORLD INFECTION ±</label>
+      <div class="step">
+        <span class="step-num">STEP <b>4</b> — WORLD</span>
+        <div class="step-hint">ปรับระดับเชื้อทั่วโลก หรือย้ายตำแหน่งทีม</div>
         <input type="number" id="input-world-infection" value="5" min="1" max="100" />
-        <button id="btn-world-infect-up" class="red">▲ INCREASE</button>
-        <button id="btn-world-infect-down" class="green">▼ DECREASE</button>
-      </div>
-
-      <div class="gm-block">
-        <label class="gmlabel">MOVE LOCATION</label>
-        <input type="text" id="input-map-id" placeholder="map id" />
+        <div class="btn-row">
+          <button id="btn-world-infect-up" class="danger minor">▲ เพิ่ม</button>
+          <button id="btn-world-infect-down" class="heal minor">▼ ลด</button>
+        </div>
+        <input type="text" id="input-map-id" placeholder="map id" style="margin-top:8px" />
         <input type="text" id="input-loc-id" placeholder="location id" />
-        <button id="btn-move-location">🗺 MOVE</button>
+        <button id="btn-move-location" class="minor">🗺 ย้ายตำแหน่ง</button>
       </div>
 
-      <div class="gm-block">
-        <label class="gmlabel">APPLY EVENT</label>
+      <div class="step">
+        <span class="step-num">STEP <b>5</b> — EVENT</span>
+        <div class="step-hint">เลือกเหตุการณ์และผลลัพธ์ที่ผู้เล่นเลือก แล้วกด Apply</div>
         <select id="select-event"></select>
         <select id="select-choice"></select>
-        <button id="btn-apply-event" class="green">▶ APPLY</button>
+        <button id="btn-apply-event" class="confirm">▶ APPLY EVENT</button>
       </div>
 
-      <div class="gm-block">
-        <label class="gmlabel">WORLD FLAG</label>
+      <div class="step">
+        <span class="step-num">STEP <b>6</b> — FLAG</span>
+        <div class="step-hint">ตั้งค่าสถานะพิเศษของโลก (advanced)</div>
         <input type="text" id="input-flag-key" placeholder="flag key" />
         <select id="select-flag-val">
           <option value="true">true</option>
           <option value="false">false</option>
         </select>
-        <button id="btn-set-flag">🚩 SET FLAG</button>
+        <button id="btn-set-flag" class="minor">🚩 SET FLAG</button>
       </div>
 
-      <div class="gm-block">
-        <button id="btn-end-turn">⏭ NEXT TURN</button>
-        <button id="btn-check-ending" class="red">🏁 CHECK ENDING</button>
+      <div class="step">
+        <span class="step-num">STEP <b>7</b> — TURN</span>
+        <div class="step-hint">จบเทิร์นนี้ หรือเช็คว่าเกมถึงจุดจบหรือยัง</div>
+        <button id="btn-end-turn" class="confirm">⏭ NEXT TURN</button>
+        <button id="btn-check-ending" class="danger">🏁 CHECK ENDING</button>
       </div>
+
     </div>
 
     <div class="panel" id="panel-log">
-      <div class="panel-title">GM LOG</div>
+      <div class="panel-title"><i>📡</i> SYSTEM LOG</div>
       <div id="log-entries"></div>
     </div>
+
   </div>
 </div>
 
